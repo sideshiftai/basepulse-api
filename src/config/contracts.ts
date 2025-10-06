@@ -1,0 +1,60 @@
+/**
+ * Smart contract configuration
+ */
+
+import { Address } from 'viem';
+
+// PulseChain network configuration
+export const PULSECHAIN_CHAIN_ID = 369;
+
+// Contract addresses - update these with your deployed contract addresses
+export const POLLS_CONTRACT_ADDRESS: Address = '0x0000000000000000000000000000000000000000'; // TODO: Update with actual address
+
+// Contract ABI - minimal ABI for the functions we need
+export const POLLS_CONTRACT_ABI = [
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'address', name: 'recipient', type: 'address' },
+    ],
+    name: 'withdrawFunds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
+    name: 'getPoll',
+    outputs: [
+      { internalType: 'uint256', name: 'id', type: 'uint256' },
+      { internalType: 'string', name: 'question', type: 'string' },
+      { internalType: 'string[]', name: 'options', type: 'string[]' },
+      { internalType: 'uint256[]', name: 'votes', type: 'uint256[]' },
+      { internalType: 'uint256', name: 'endTime', type: 'uint256' },
+      { internalType: 'bool', name: 'isActive', type: 'bool' },
+      { internalType: 'address', name: 'creator', type: 'address' },
+      { internalType: 'uint256', name: 'totalFunding', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
+    name: 'getPollFundings',
+    outputs: [
+      {
+        components: [
+          { internalType: 'address', name: 'token', type: 'address' },
+          { internalType: 'uint256', name: 'amount', type: 'uint256' },
+          { internalType: 'address', name: 'funder', type: 'address' },
+          { internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+        ],
+        internalType: 'struct PollsContract.Funding[]',
+        name: '',
+        type: 'tuple[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
