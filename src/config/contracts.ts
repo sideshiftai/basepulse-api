@@ -8,7 +8,7 @@ import { Address } from 'viem';
 export const PULSECHAIN_CHAIN_ID = 369;
 
 // Contract addresses - update these with your deployed contract addresses
-export const POLLS_CONTRACT_ADDRESS: Address = '0x0000000000000000000000000000000000000000'; // TODO: Update with actual address
+export const POLLS_CONTRACT_ADDRESS: Address = '0xa3713739c39419aA1c6daf349dB4342Be59b9142';
 
 // Contract ABI - minimal ABI for the functions we need
 export const POLLS_CONTRACT_ABI = [
