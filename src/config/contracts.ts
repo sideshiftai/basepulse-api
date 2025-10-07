@@ -4,8 +4,8 @@
 
 import { Address } from 'viem';
 
-// PulseChain network configuration
-export const PULSECHAIN_CHAIN_ID = 369;
+// Base Sepolia network configuration
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 // Contract addresses - update these with your deployed contract addresses
 export const POLLS_CONTRACT_ADDRESS: Address = '0xa3713739c39419aA1c6daf349dB4342Be59b9142';

@@ -1,16 +1,16 @@
 /**
- * Blockchain service for interacting with PulseChain smart contracts
+ * Blockchain service for interacting with Base network smart contracts
  */
 
 import { createPublicClient, createWalletClient, http, Address } from 'viem';
-import { pulsechain } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 import { config } from '../config/env';
 import { POLLS_CONTRACT_ADDRESS, POLLS_CONTRACT_ABI } from '../config/contracts';
 
 // Create public client for reading blockchain data
 export const publicClient = createPublicClient({
-  chain: pulsechain,
-  transport: http(config.blockchain.rpcUrl),
+  chain: baseSepolia,
+  transport: http('https://sepolia.base.org'),
 });
 
 /**
