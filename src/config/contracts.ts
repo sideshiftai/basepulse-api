@@ -4,11 +4,40 @@
 
 import { Address } from 'viem';
 
-// Base Sepolia network configuration
+// Network chain IDs
+export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
-// Contract addresses - update these with your deployed contract addresses
-export const POLLS_CONTRACT_ADDRESS: Address = '0xa3713739c39419aA1c6daf349dB4342Be59b9142';
+// Contract addresses for each network
+const BASE_MAINNET_POLLS_CONTRACT: Address = '0xfc0323F3c5eD271564Ca8F3d4C5FfAD32D553893';
+const BASE_SEPOLIA_POLLS_CONTRACT: Address = '0xa3713739c39419aA1c6daf349dB4342Be59b9142';
+
+// Environment-based configuration
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Export active configuration based on environment
+export const CHAIN_ID = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_SEPOLIA_CHAIN_ID;
+export const POLLS_CONTRACT_ADDRESS: Address = isProduction
+  ? BASE_MAINNET_POLLS_CONTRACT
+  : BASE_SEPOLIA_POLLS_CONTRACT;
+
+// Helper to get config for a specific network
+export const getNetworkConfig = (chainId: number) => {
+  if (chainId === BASE_MAINNET_CHAIN_ID) {
+    return {
+      chainId: BASE_MAINNET_CHAIN_ID,
+      pollsContract: BASE_MAINNET_POLLS_CONTRACT,
+      network: 'Base Mainnet',
+    };
+  } else if (chainId === BASE_SEPOLIA_CHAIN_ID) {
+    return {
+      chainId: BASE_SEPOLIA_CHAIN_ID,
+      pollsContract: BASE_SEPOLIA_POLLS_CONTRACT,
+      network: 'Base Sepolia',
+    };
+  }
+  throw new Error(`Unsupported chain ID: ${chainId}`);
+};
 
 // Contract ABI - minimal ABI for the functions we need
 export const POLLS_CONTRACT_ABI = [
