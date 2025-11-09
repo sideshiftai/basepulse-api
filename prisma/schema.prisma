@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Poll metadata and distribution configuration
+model Poll {
+  id                String              @id @default(uuid())
+  chainId           Int
+  pollId            BigInt
+  distributionMode  String              @default("MANUAL_PULL")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  distributionLogs  DistributionLog[]
+
+  @@unique([chainId, pollId])
+  @@index([chainId])
+  @@index([pollId])
+}
+
+// Event logs for reward distribution
+model DistributionLog {
+  id          String    @id @default(uuid())
+  pollId      String
+  poll        Poll      @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  recipient   String
+  amount      String
+  token       String    @default("0x0000000000000000000000000000000000000000") // ETH = 0x0
+  txHash      String
+  eventType   String    // "distributed", "claimed", "withdrawn"
+  timestamp   DateTime  @default(now())
+
+  @@index([pollId])
+  @@index([recipient])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+// User cryptocurrency preferences
+model UserPreference {
+  id              String    @id @default(uuid())
+  address         String    @unique
+  preferredToken  String?   // Preferred cryptocurrency symbol (e.g., "USDT", "BTC")
+  autoClaimEnabled Boolean  @default(false)
+  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+
+  @@index([address])
+}
+
+// Leaderboard and user statistics
+model Leaderboard {
+  id                String   @id @default(uuid())
+  address           String   @unique
+  totalRewards      String   @default("0") // Stored as string to handle BigInt
+  pollsParticipated Int      @default(0)
+  totalVotes        Int      @default(0)
+  pollsCreated      Int      @default(0)
+  lastUpdated       DateTime @updatedAt
+
+  @@index([totalRewards])
+  @@index([pollsParticipated])
+  @@index([totalVotes])
+}
+
+// SideShift shift tracking (migrated from memory storage)
+model Shift {
+  id                String    @id @default(uuid())
+  sideshiftOrderId  String    @unique
+  pollId            String
+  userAddress       String
+  purpose           String    // "fund_poll" | "claim_reward"
+
+  sourceAsset       String
+  destAsset         String
+  sourceNetwork     String
+  destNetwork       String
+  sourceAmount      String?
+  destAmount        String?
+
+  depositAddress    String
+  settleAddress     String
+
+  shiftType         String    // "fixed" | "variable"
+  status            String    // SideShift shift status
+
+  depositTxHash     String?
+  settleTxHash      String?
+  contractTxHash    String?   // Our contract interaction tx
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  completedAt       DateTime?
+  expiresAt         DateTime
+
+  @@index([userAddress])
+  @@index([pollId])
+  @@index([status])
+  @@index([purpose])
+  @@index([createdAt])
+}
