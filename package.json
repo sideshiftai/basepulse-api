@@ -9,7 +9,12 @@
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:drop": "drizzle-kit drop"
   },
   "keywords": [
     "basepulse",
@@ -27,14 +32,17 @@
     "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.7",
     "express": "^5.1.0",
     "pg": "^8.16.3",
+    "postgres": "^3.4.7",
     "prisma": "^6.19.0",
     "typescript": "^5.9.3",
     "viem": "^2.37.13",
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.31.6",
     "tsx": "^4.20.6"
   }
 }
