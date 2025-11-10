@@ -107,7 +107,7 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
 
       // Destination coin from user preferences or request
       if (!destCoin) {
-        const preferences = await preferencesService.get(data.userAddress);
+        const preferences = await preferencesService.get(data.userAddress as Address);
         destCoin = preferences?.preferredToken || 'USDC';
       }
 
@@ -269,7 +269,7 @@ router.post('/webhook', webhookLimiter, webhookAuth, async (req: Request, res: R
 
           const txHash = await blockchainService.withdrawFunds(
             shift.pollId,
-            shift.userAddress
+            shift.userAddress as Address
           );
 
           logger.info('Automated withdrawal successful', {

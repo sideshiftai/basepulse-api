@@ -2,7 +2,8 @@
  * Blockchain service for interacting with Base network smart contracts
  */
 
-import { createPublicClient, createWalletClient, http, Address, privateKeyToAccount } from 'viem';
+import { createPublicClient, createWalletClient, http, Address } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 import { config } from '../config/env';
 import { POLLS_CONTRACT_ADDRESS, POLLS_CONTRACT_ABI } from '../config/contracts';
@@ -170,6 +171,7 @@ export class BlockchainService {
         abi: POLLS_CONTRACT_ABI,
         functionName: 'withdrawFunds',
         args: [BigInt(pollId), recipient],
+        account,
       });
 
       // Wait for transaction confirmation
