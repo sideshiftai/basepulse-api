@@ -4,4 +4,6 @@ export * from './distribution';
 export * from './preferences';
 export * from './leaderboard';
 export * from './shifts';
+export * from './checkpoints';
+export * from './announcements';
 export * from './relations';

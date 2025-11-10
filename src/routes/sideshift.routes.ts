@@ -5,11 +5,15 @@
 import { Router, Request, Response } from 'express';
 import { sideshiftService } from '../services/sideshift.service';
 import { blockchainService } from '../services/blockchain.service';
-import { storage } from '../db/memory-storage';
+import { shiftsService } from '../services/shifts.service';
+import { preferencesService } from '../services/preferences.service';
 import { createShiftSchema, webhookPayloadSchema } from '../utils/validators';
 import { webhookAuth } from '../middleware/webhook-auth';
 import { logger } from '../utils/logger';
 import { Address } from 'viem';
+import { apiLimiter, strictLimiter, webhookLimiter } from '../middleware/rate-limit';
+import { getNetworkForChain } from '../config/chains';
+import { getDefaultDestinationCoin } from '../utils/currency-utils';
 
 const router = Router();
 
@@ -17,7 +21,7 @@ const router = Router();
  * GET /api/sideshift/supported-assets
  * Get list of supported cryptocurrencies
  */
-router.get('/supported-assets', async (req: Request, res: Response) => {
+router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) => {
   try {
     const assets = await sideshiftService.getCoins();
 
@@ -39,7 +43,7 @@ router.get('/supported-assets', async (req: Request, res: Response) => {
  * POST /api/sideshift/create-shift
  * Create a new shift order
  */
-router.post('/create-shift', async (req: Request, res: Response) => {
+router.post('/create-shift', strictLimiter, async (req: Request, res: Response) => {
   try {
     // Validate request
     const data = createShiftSchema.parse(req.body);
@@ -61,14 +65,67 @@ router.post('/create-shift', async (req: Request, res: Response) => {
     // Determine shift type (fixed if amount provided, variable otherwise)
     const shiftType = data.sourceAmount ? 'fixed' : 'variable';
 
-    // Get recommended networks if not provided
+    // Determine source and destination coins and networks based on purpose
+    let sourceCoin = data.sourceCoin;
+    let destCoin = data.destCoin;
     let sourceNetwork = data.sourceNetwork;
     let destNetwork = data.destNetwork;
 
+    if (data.purpose === 'fund_poll') {
+      // FUNDING: User deposits any token -> Convert to USDC/ETH on poll's chain
+
+      // Get the chain where the poll is deployed
+      const pollChainId = blockchainService.getPollChain(data.pollId);
+      const pollNetwork = getNetworkForChain(pollChainId);
+
+      // Destination network is always the poll's chain
+      destNetwork = pollNetwork;
+
+      // Destination coin: USDC for stablecoins, ETH for others
+      if (!destCoin) {
+        destCoin = getDefaultDestinationCoin(sourceCoin);
+      }
+
+      logger.info('Fund poll shift configuration', {
+        pollId: data.pollId,
+        pollChain: pollChainId,
+        pollNetwork,
+        sourceCoin,
+        destCoin,
+        destNetwork,
+      });
+    } else if (data.purpose === 'claim_reward') {
+      // CLAIMING: Poll rewards (ETH on poll chain) -> Convert to user's preferred token/network
+
+      // Get the chain where the poll is deployed (source of rewards)
+      const pollChainId = blockchainService.getPollChain(data.pollId);
+      const pollNetwork = getNetworkForChain(pollChainId);
+
+      // Source is always the poll's rewards (ETH on poll's chain)
+      sourceCoin = 'ETH';
+      sourceNetwork = pollNetwork;
+
+      // Destination coin from user preferences or request
+      if (!destCoin) {
+        const preferences = await preferencesService.get(data.userAddress);
+        destCoin = preferences?.preferredToken || 'USDC';
+      }
+
+      logger.info('Claim reward shift configuration', {
+        pollId: data.pollId,
+        pollChain: pollChainId,
+        pollNetwork,
+        sourceCoin,
+        destCoin,
+        preferredToken: destCoin,
+      });
+    }
+
+    // Get recommended networks if still not provided
     if (!sourceNetwork || !destNetwork) {
       const networks = await sideshiftService.getRecommendedNetworks(
-        data.sourceCoin,
-        data.destCoin
+        sourceCoin,
+        destCoin
       );
       sourceNetwork = sourceNetwork || networks.defaultDepositNetwork;
       destNetwork = destNetwork || networks.defaultSettleNetwork;
@@ -77,8 +134,8 @@ router.post('/create-shift', async (req: Request, res: Response) => {
     // Create Sideshift order
     const sideshiftOrder = await sideshiftService.createShift(shiftType, {
       settleAddress: data.userAddress, // User receives funds
-      depositCoin: data.sourceCoin,
-      settleCoin: data.destCoin,
+      depositCoin: sourceCoin,
+      settleCoin: destCoin,
       depositNetwork: sourceNetwork,
       settleNetwork: destNetwork,
       ...(shiftType === 'fixed' && data.sourceAmount
@@ -88,13 +145,13 @@ router.post('/create-shift', async (req: Request, res: Response) => {
     });
 
     // Store shift in database
-    const storedShift = await storage.create({
+    const storedShift = await shiftsService.create({
       sideshiftOrderId: sideshiftOrder.id,
       pollId: data.pollId,
       userAddress: data.userAddress as Address,
       purpose: data.purpose,
-      sourceAsset: data.sourceCoin,
-      destAsset: data.destCoin,
+      sourceAsset: sourceCoin,
+      destAsset: destCoin,
       sourceNetwork: sourceNetwork,
       destNetwork: destNetwork,
       sourceAmount: data.sourceAmount,
@@ -134,12 +191,12 @@ router.post('/create-shift', async (req: Request, res: Response) => {
  * GET /api/sideshift/shift-status/:id
  * Get shift status
  */
-router.get('/shift-status/:id', async (req: Request, res: Response) => {
+router.get('/shift-status/:id', apiLimiter, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     // Get from our database
-    const storedShift = await storage.getById(id);
+    const storedShift = await shiftsService.getById(id);
     if (!storedShift) {
       return res.status(404).json({ error: 'Shift not found' });
     }
@@ -149,7 +206,7 @@ router.get('/shift-status/:id', async (req: Request, res: Response) => {
 
     // Update our database if status changed
     if (sideshiftData.status !== storedShift.status) {
-      await storage.update(id, {
+      await shiftsService.update(id, {
         status: sideshiftData.status,
       });
     }
@@ -168,7 +225,7 @@ router.get('/shift-status/:id', async (req: Request, res: Response) => {
  * POST /api/sideshift/webhook
  * Webhook endpoint for Sideshift callbacks
  */
-router.post('/webhook', webhookAuth, async (req: Request, res: Response) => {
+router.post('/webhook', webhookLimiter, webhookAuth, async (req: Request, res: Response) => {
   try {
     const payload = webhookPayloadSchema.parse(req.body);
 
@@ -178,14 +235,14 @@ router.post('/webhook', webhookAuth, async (req: Request, res: Response) => {
     });
 
     // Find shift in our database
-    const shift = await storage.getBySideshiftOrderId(payload.orderId);
+    const shift = await shiftsService.getBySideshiftOrderId(payload.orderId);
     if (!shift) {
       logger.warn('Webhook for unknown shift', { orderId: payload.orderId });
       return res.status(404).json({ error: 'Shift not found' });
     }
 
     // Update shift status
-    await storage.update(shift.id, {
+    await shiftsService.update(shift.id, {
       status: payload.status,
       depositTxHash: payload.depositHash as `0x${string}` | undefined,
       settleTxHash: payload.settleHash as `0x${string}` | undefined,
@@ -200,8 +257,42 @@ router.post('/webhook', webhookAuth, async (req: Request, res: Response) => {
         pollId: shift.pollId,
       });
 
-      // TODO: For claim_reward purpose, call contract.withdrawFunds() here
-      // This would require a backend wallet with gas funds
+      // For claim_reward purpose, automatically withdraw funds from contract
+      if (shift.purpose === 'claim_reward') {
+        try {
+          const { blockchainService } = await import('../services/blockchain.service');
+
+          logger.info('Initiating automated reward withdrawal', {
+            pollId: shift.pollId,
+            recipient: shift.userAddress,
+          });
+
+          const txHash = await blockchainService.withdrawFunds(
+            shift.pollId,
+            shift.userAddress
+          );
+
+          logger.info('Automated withdrawal successful', {
+            pollId: shift.pollId,
+            recipient: shift.userAddress,
+            txHash,
+          });
+
+          // Update shift with withdrawal transaction hash
+          await shiftsService.update(shift.id, {
+            contractTxHash: txHash,
+          });
+        } catch (error) {
+          logger.error('Automated withdrawal failed', {
+            error,
+            pollId: shift.pollId,
+            userAddress: shift.userAddress,
+            suggestion: 'User will need to manually claim rewards',
+          });
+          // Don't fail the webhook - shift is still settled
+          // User can manually claim if automated withdrawal fails
+        }
+      }
     }
 
     res.json({ success: true });
@@ -215,10 +306,10 @@ router.post('/webhook', webhookAuth, async (req: Request, res: Response) => {
  * GET /api/sideshift/user/:address
  * Get all shifts for a user
  */
-router.get('/user/:address', async (req: Request, res: Response) => {
+router.get('/user/:address', apiLimiter, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
-    const shifts = await storage.getByUserAddress(address as Address);
+    const shifts = await shiftsService.getByUserAddress(address as Address);
     res.json({ shifts });
   } catch (error) {
     logger.error('Failed to get user shifts', { error });
@@ -230,10 +321,10 @@ router.get('/user/:address', async (req: Request, res: Response) => {
  * GET /api/sideshift/poll/:pollId
  * Get all shifts for a poll
  */
-router.get('/poll/:pollId', async (req: Request, res: Response) => {
+router.get('/poll/:pollId', apiLimiter, async (req: Request, res: Response) => {
   try {
     const { pollId } = req.params;
-    const shifts = await storage.getByPollId(pollId);
+    const shifts = await shiftsService.getByPollId(pollId);
     res.json({ shifts });
   } catch (error) {
     logger.error('Failed to get poll shifts', { error });

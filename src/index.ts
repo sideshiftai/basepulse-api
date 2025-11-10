@@ -8,6 +8,11 @@ import cors from 'cors';
 import { config } from './config/env';
 import { errorHandler } from './middleware/error-handler';
 import sideshiftRoutes from './routes/sideshift.routes';
+import pollsRoutes from './routes/polls.routes';
+import leaderboardRoutes from './routes/leaderboard.routes';
+import preferencesRoutes from './routes/preferences.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import announcementsRoutes from './routes/announcements.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -39,6 +44,11 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API routes
 app.use('/api/sideshift', sideshiftRoutes);
+app.use('/api/polls', pollsRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/preferences', preferencesRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/announcements', announcementsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

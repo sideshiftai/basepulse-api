@@ -27,6 +27,9 @@ const envSchema = z.object({
 
   // Security
   WEBHOOK_SECRET: z.string().min(32),
+
+  // Backend Wallet (for automated contract calls)
+  BACKEND_PRIVATE_KEY: z.string().optional(),
 });
 
 // Parse and validate environment variables
@@ -77,5 +80,8 @@ export const config = {
   },
   security: {
     webhookSecret: env.WEBHOOK_SECRET,
+  },
+  backend: {
+    privateKey: env.BACKEND_PRIVATE_KEY,
   },
 } as const;

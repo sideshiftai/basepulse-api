@@ -2,7 +2,7 @@
  * Blockchain service for interacting with Base network smart contracts
  */
 
-import { createPublicClient, createWalletClient, http, Address } from 'viem';
+import { createPublicClient, createWalletClient, http, Address, privateKeyToAccount } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { config } from '../config/env';
 import { POLLS_CONTRACT_ADDRESS, POLLS_CONTRACT_ABI } from '../config/contracts';
@@ -13,10 +13,24 @@ export const publicClient = createPublicClient({
   transport: http('https://sepolia.base.org'),
 });
 
+// Current chain ID for the deployment
+const CURRENT_CHAIN_ID = baseSepolia.id; // 84532
+
 /**
  * Blockchain service for smart contract interactions
  */
 export class BlockchainService {
+  /**
+   * Get the chain ID where polls are deployed
+   * @param pollId - The poll ID (currently all polls are on the same chain)
+   * @returns Chain ID (e.g., 84532 for Base Sepolia)
+   */
+  getPollChain(pollId: string): number {
+    // Currently all polls are deployed on the same chain
+    // In the future, this could query a database or registry
+    // to support multi-chain polls
+    return CURRENT_CHAIN_ID;
+  }
   /**
    * Get poll data from smart contract
    */
@@ -127,6 +141,47 @@ export class BlockchainService {
       });
     } catch (error) {
       throw new Error(`Transaction failed: ${error}`);
+    }
+  }
+
+  /**
+   * Withdraw funds from a poll (backend automated claim)
+   * Requires BACKEND_PRIVATE_KEY environment variable
+   */
+  async withdrawFunds(pollId: string, recipient: Address): Promise<`0x${string}`> {
+    try {
+      // Check if backend wallet is configured
+      const privateKey = config.backend.privateKey;
+      if (!privateKey) {
+        throw new Error('Backend wallet not configured. Set BACKEND_PRIVATE_KEY in .env');
+      }
+
+      // Create wallet client for backend transactions
+      const account = privateKeyToAccount(privateKey as `0x${string}`);
+      const walletClient = createWalletClient({
+        account,
+        chain: baseSepolia,
+        transport: http('https://sepolia.base.org'),
+      });
+
+      // Call withdrawFunds on the contract
+      const hash = await walletClient.writeContract({
+        address: POLLS_CONTRACT_ADDRESS,
+        abi: POLLS_CONTRACT_ABI,
+        functionName: 'withdrawFunds',
+        args: [BigInt(pollId), recipient],
+      });
+
+      // Wait for transaction confirmation
+      const receipt = await this.waitForTransaction(hash);
+
+      if (receipt.status !== 'success') {
+        throw new Error('Transaction reverted');
+      }
+
+      return hash;
+    } catch (error) {
+      throw new Error(`Failed to withdraw funds: ${error}`);
     }
   }
 }

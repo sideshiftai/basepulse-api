@@ -39,8 +39,87 @@ export const getNetworkConfig = (chainId: number) => {
   throw new Error(`Unsupported chain ID: ${chainId}`);
 };
 
-// Contract ABI - minimal ABI for the functions we need
+// Contract ABI - includes all events and functions we need
 export const POLLS_CONTRACT_ABI = [
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: false, internalType: 'enum PollsContract.DistributionMode', name: 'mode', type: 'uint8' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'DistributionModeSet',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: false, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'FundsWithdrawn',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'creator', type: 'address' },
+      { indexed: false, internalType: 'string', name: 'question', type: 'string' },
+      { indexed: false, internalType: 'uint256', name: 'endTime', type: 'uint256' },
+    ],
+    name: 'PollCreated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'funder', type: 'address' },
+      { indexed: false, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'PollFunded',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'claimer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'RewardClaimed',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'RewardDistributed',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'voter', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'optionIndex', type: 'uint256' },
+    ],
+    name: 'Voted',
+    type: 'event',
+  },
+  // Functions
   {
     inputs: [
       { internalType: 'uint256', name: 'pollId', type: 'uint256' },

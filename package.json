@@ -14,7 +14,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:drop": "drizzle-kit drop"
+    "db:drop": "drizzle-kit drop",
+    "event-listener": "tsx src/scripts/event-listener.ts"
   },
   "keywords": [
     "basepulse",
@@ -33,6 +34,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "pg": "^8.16.3",
     "postgres": "^3.4.7",
     "typescript": "^5.9.3",
