@@ -111,6 +111,7 @@ export class ShiftsService {
       depositTxHash: `0x${string}`;
       settleTxHash: `0x${string}`;
       contractTxHash: `0x${string}`;
+      fundingTxHash: `0x${string}`;
       completedAt: Date;
     }>
   ) {

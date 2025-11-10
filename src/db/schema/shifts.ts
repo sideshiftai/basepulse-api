@@ -23,6 +23,7 @@ export const shifts = pgTable('Shift', {
   depositTxHash: text('depositTxHash'),
   settleTxHash: text('settleTxHash'),
   contractTxHash: text('contractTxHash'), // Our contract interaction tx
+  fundingTxHash: text('fundingTxHash'), // Transaction hash when user funds the poll
 
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
@@ -34,6 +35,7 @@ export const shifts = pgTable('Shift', {
   statusIdx: index('Shift_status_idx').on(table.status),
   purposeIdx: index('Shift_purpose_idx').on(table.purpose),
   createdAtIdx: index('Shift_createdAt_idx').on(table.createdAt),
+  fundingTxHashIdx: index('Shift_fundingTxHash_idx').on(table.fundingTxHash),
 }));
 
 export type Shift = typeof shifts.$inferSelect;

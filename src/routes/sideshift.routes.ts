@@ -48,8 +48,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     // Validate request
     const data = createShiftSchema.parse(req.body);
 
-    // Validate poll exists
-    const pollExists = await blockchainService.validatePoll(data.pollId);
+    // Validate poll exists (using chainId if provided, otherwise env default)
+    const pollExists = await blockchainService.validatePoll(data.pollId, data.chainId);
     if (!pollExists) {
       return res.status(404).json({ error: 'Poll not found' });
     }
@@ -74,8 +74,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     if (data.purpose === 'fund_poll') {
       // FUNDING: User deposits any token -> Convert to USDC/ETH on poll's chain
 
-      // Get the chain where the poll is deployed
-      const pollChainId = blockchainService.getPollChain(data.pollId);
+      // Get the chain where the poll is deployed (use provided chainId or env default)
+      const pollChainId = blockchainService.getPollChain(data.pollId, data.chainId);
       const pollNetwork = getNetworkForChain(pollChainId);
 
       // Destination network is always the poll's chain
@@ -97,8 +97,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     } else if (data.purpose === 'claim_reward') {
       // CLAIMING: Poll rewards (ETH on poll chain) -> Convert to user's preferred token/network
 
-      // Get the chain where the poll is deployed (source of rewards)
-      const pollChainId = blockchainService.getPollChain(data.pollId);
+      // Get the chain where the poll is deployed (source of rewards, use provided chainId or env default)
+      const pollChainId = blockchainService.getPollChain(data.pollId, data.chainId);
       const pollNetwork = getNetworkForChain(pollChainId);
 
       // Source is always the poll's rewards (ETH on poll's chain)
@@ -267,15 +267,20 @@ router.post('/webhook', webhookLimiter, webhookAuth, async (req: Request, res: R
             recipient: shift.userAddress,
           });
 
+          // Withdraw ETH (address(0)) - in the future, this could be extended to support multiple tokens
+          const tokensToWithdraw = ['0x0000000000000000000000000000000000000000' as Address];
+
           const txHash = await blockchainService.withdrawFunds(
             shift.pollId,
-            shift.userAddress as Address
+            shift.userAddress as Address,
+            tokensToWithdraw
           );
 
           logger.info('Automated withdrawal successful', {
             pollId: shift.pollId,
             recipient: shift.userAddress,
             txHash,
+            tokens: tokensToWithdraw,
           });
 
           // Update shift with withdrawal transaction hash
@@ -329,6 +334,46 @@ router.get('/poll/:pollId', apiLimiter, async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Failed to get poll shifts', { error });
     res.status(500).json({ error: 'Failed to get poll shifts' });
+  }
+});
+
+/**
+ * POST /api/sideshift/shift/:shiftId/link-funding
+ * Link a funding transaction to a shift
+ */
+router.post('/shift/:shiftId/link-funding', apiLimiter, async (req: Request, res: Response) => {
+  try {
+    const { shiftId } = req.params;
+    const { fundingTxHash } = req.body;
+
+    if (!fundingTxHash) {
+      return res.status(400).json({ error: 'fundingTxHash is required' });
+    }
+
+    // Get shift to verify it exists
+    const shift = await shiftsService.getById(shiftId);
+    if (!shift) {
+      return res.status(404).json({ error: 'Shift not found' });
+    }
+
+    // Update shift with funding tx hash
+    const updated = await shiftsService.update(shiftId, {
+      fundingTxHash: fundingTxHash as `0x${string}`,
+    });
+
+    logger.info('Funding transaction linked to shift', {
+      shiftId,
+      fundingTxHash,
+      pollId: shift.pollId,
+    });
+
+    res.json({
+      success: true,
+      shift: updated,
+    });
+  } catch (error) {
+    logger.error('Failed to link funding transaction', { error });
+    res.status(500).json({ error: 'Failed to link funding transaction' });
   }
 });
 

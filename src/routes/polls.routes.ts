@@ -4,6 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { pollsService } from '../services/polls.service';
+import { blockchainService } from '../services/blockchain.service';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
 
@@ -189,6 +190,37 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Failed to get poll stats', { error });
     res.status(500).json({ error: 'Failed to fetch poll statistics' });
+  }
+});
+
+/**
+ * GET /api/polls/blockchain/:chainId/:pollId/fundings
+ * Get funding history from blockchain for a specific poll
+ */
+router.get('/blockchain/:chainId/:pollId/fundings', async (req: Request, res: Response) => {
+  try {
+    const chainId = parseInt(req.params.chainId);
+    const { pollId } = req.params;
+
+    const fundings = await blockchainService.getPollFundings(BigInt(pollId), chainId);
+    const poll = await blockchainService.getPoll(BigInt(pollId));
+
+    res.json({
+      pollId,
+      chainId,
+      totalFunding: poll.totalFunding.toString(),
+      distributionMode: poll.distributionMode, // NEW: include distribution mode
+      totalFundings: fundings.length,
+      fundings: fundings.map((funding) => ({
+        token: funding.token,
+        amount: funding.amount,
+        funder: funding.funder,
+        timestamp: funding.timestamp.toString(),
+      })),
+    });
+  } catch (error) {
+    logger.error('Failed to get poll fundings from blockchain', { error, pollId: req.params.pollId });
+    res.status(500).json({ error: 'Failed to get poll fundings' });
   }
 });
 

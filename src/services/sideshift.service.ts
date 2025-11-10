@@ -10,6 +10,7 @@ import {
   SideshiftQuote,
   SideshiftOrder,
   SideshiftPermission,
+  CreateQuoteRequest,
   CreateFixedShiftRequest,
   CreateVariableShiftRequest,
   ShiftType,
@@ -19,11 +20,18 @@ export class SideshiftService {
   private client: AxiosInstance;
 
   constructor() {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add secret header if configured
+    if (config.sideshift.secret) {
+      headers['x-sideshift-secret'] = config.sideshift.secret;
+    }
+
     this.client = axios.create({
       baseURL: config.sideshift.apiUrl,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       timeout: 30000,
     });
 
@@ -69,34 +77,32 @@ export class SideshiftService {
   }
 
   /**
-   * Create a fixed-rate quote
+   * Create a fixed-rate quote (Step 1 for fixed shifts)
    */
-  async createQuote(params: {
-    depositCoin: string;
-    settleCoin: string;
-    depositNetwork?: string;
-    settleNetwork?: string;
-    depositAmount: string;
-    affiliateId?: string;
-  }): Promise<SideshiftQuote> {
-    const response = await this.client.post<SideshiftQuote>('/quotes', {
-      depositCoin: params.depositCoin,
-      settleCoin: params.settleCoin,
-      depositNetwork: params.depositNetwork,
-      settleNetwork: params.settleNetwork,
-      depositAmount: params.depositAmount,
+  async createQuote(params: CreateQuoteRequest): Promise<SideshiftQuote> {
+    const payload = {
+      ...params,
       affiliateId: params.affiliateId || config.sideshift.affiliateId,
-    });
+    };
+
+    const response = await this.client.post<SideshiftQuote>('/quotes', payload);
     return response.data;
   }
 
   /**
-   * Create a fixed-rate shift
+   * Create a fixed-rate shift (Step 2 for fixed shifts)
+   * Must be called after createQuote() to get a quoteId
    */
   async createFixedShift(params: CreateFixedShiftRequest): Promise<SideshiftOrder> {
+    // Only send the parameters that the /shifts/fixed endpoint accepts
     const payload = {
-      ...params,
+      quoteId: params.quoteId,
+      settleAddress: params.settleAddress,
       affiliateId: params.affiliateId || config.sideshift.affiliateId,
+      ...(params.settleMemo ? { settleMemo: params.settleMemo } : {}),
+      ...(params.refundAddress ? { refundAddress: params.refundAddress } : {}),
+      ...(params.refundMemo ? { refundMemo: params.refundMemo } : {}),
+      ...(params.externalId ? { externalId: params.externalId } : {}),
     };
 
     const response = await this.client.post<SideshiftOrder>('/shifts/fixed', payload);
@@ -126,15 +132,54 @@ export class SideshiftService {
 
   /**
    * Helper: Create a shift (fixed or variable)
+   * For fixed shifts, this handles the two-step process automatically
    */
   async createShift(
     type: ShiftType,
-    params: CreateFixedShiftRequest | CreateVariableShiftRequest
+    params: {
+      settleAddress: string;
+      depositCoin: string;
+      settleCoin: string;
+      depositNetwork?: string;
+      settleNetwork?: string;
+      depositAmount?: string;
+      refundAddress?: string;
+      affiliateId?: string;
+    }
   ): Promise<SideshiftOrder> {
     if (type === 'fixed') {
-      return this.createFixedShift(params as CreateFixedShiftRequest);
+      // Step 1: Create a quote first
+      if (!params.depositAmount) {
+        throw new Error('depositAmount is required for fixed-rate shifts');
+      }
+
+      const quote = await this.createQuote({
+        depositCoin: params.depositCoin,
+        settleCoin: params.settleCoin,
+        depositNetwork: params.depositNetwork,
+        settleNetwork: params.settleNetwork,
+        depositAmount: params.depositAmount,
+        affiliateId: params.affiliateId,
+      });
+
+      // Step 2: Create the fixed shift using the quoteId
+      return this.createFixedShift({
+        quoteId: quote.id,
+        settleAddress: params.settleAddress,
+        refundAddress: params.refundAddress,
+        affiliateId: params.affiliateId,
+      });
     } else {
-      return this.createVariableShift(params as CreateVariableShiftRequest);
+      // Variable shifts can be created directly
+      return this.createVariableShift({
+        settleAddress: params.settleAddress,
+        depositCoin: params.depositCoin,
+        settleCoin: params.settleCoin,
+        depositNetwork: params.depositNetwork,
+        settleNetwork: params.settleNetwork,
+        refundAddress: params.refundAddress,
+        affiliateId: params.affiliateId,
+      });
     }
   }
 

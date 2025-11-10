@@ -22,6 +22,7 @@ export const createShiftSchema = z.object({
   destNetwork: z.string().optional(),
   sourceAmount: z.string().optional(),
   refundAddress: ethereumAddress.optional(),
+  chainId: z.number().optional(), // Chain ID where the poll exists
 });
 
 export type CreateShiftInput = z.infer<typeof createShiftSchema>;

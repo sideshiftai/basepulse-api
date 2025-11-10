@@ -8,9 +8,13 @@ import { Address } from 'viem';
 export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
+// RPC URLs for each network
+export const BASE_MAINNET_RPC = 'https://mainnet.base.org';
+export const BASE_SEPOLIA_RPC = 'https://sepolia.base.org';
+
 // Contract addresses for each network
 const BASE_MAINNET_POLLS_CONTRACT: Address = '0xfc0323F3c5eD271564Ca8F3d4C5FfAD32D553893';
-const BASE_SEPOLIA_POLLS_CONTRACT: Address = '0xa3713739c39419aA1c6daf349dB4342Be59b9142';
+const BASE_SEPOLIA_POLLS_CONTRACT: Address = '0xdfb6881ad34F26D57c3146d335848EDba21dFb6f'; // Optimized contract deployed 2025-01-10
 
 // Environment-based configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -20,6 +24,7 @@ export const CHAIN_ID = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_SEPOLIA_CHAI
 export const POLLS_CONTRACT_ADDRESS: Address = isProduction
   ? BASE_MAINNET_POLLS_CONTRACT
   : BASE_SEPOLIA_POLLS_CONTRACT;
+export const RPC_URL = isProduction ? BASE_MAINNET_RPC : BASE_SEPOLIA_RPC;
 
 // Helper to get config for a specific network
 export const getNetworkConfig = (chainId: number) => {
@@ -27,19 +32,21 @@ export const getNetworkConfig = (chainId: number) => {
     return {
       chainId: BASE_MAINNET_CHAIN_ID,
       pollsContract: BASE_MAINNET_POLLS_CONTRACT,
+      rpcUrl: BASE_MAINNET_RPC,
       network: 'Base Mainnet',
     };
   } else if (chainId === BASE_SEPOLIA_CHAIN_ID) {
     return {
       chainId: BASE_SEPOLIA_CHAIN_ID,
       pollsContract: BASE_SEPOLIA_POLLS_CONTRACT,
+      rpcUrl: BASE_SEPOLIA_RPC,
       network: 'Base Sepolia',
     };
   }
   throw new Error(`Unsupported chain ID: ${chainId}`);
 };
 
-// Contract ABI - includes all events and functions we need
+// Contract ABI - Optimized contract (deployed 2025-01-10)
 export const POLLS_CONTRACT_ABI = [
   // Events
   {
@@ -124,8 +131,21 @@ export const POLLS_CONTRACT_ABI = [
     inputs: [
       { internalType: 'uint256', name: 'pollId', type: 'uint256' },
       { internalType: 'address', name: 'recipient', type: 'address' },
+      { internalType: 'address[]', name: 'tokens', type: 'address[]' }, // NEW: tokens array parameter
     ],
     name: 'withdrawFunds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'address', name: 'token', type: 'address' }, // NEW: token parameter
+      { internalType: 'address[]', name: 'recipients', type: 'address[]' },
+      { internalType: 'uint256[]', name: 'amounts', type: 'uint256[]' },
+    ],
+    name: 'distributeRewards',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -142,26 +162,70 @@ export const POLLS_CONTRACT_ABI = [
       { internalType: 'bool', name: 'isActive', type: 'bool' },
       { internalType: 'address', name: 'creator', type: 'address' },
       { internalType: 'uint256', name: 'totalFunding', type: 'uint256' },
+      { internalType: 'enum PollsContract.DistributionMode', name: 'distributionMode', type: 'uint8' }, // NEW: distributionMode
     ],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
-    name: 'getPollFundings',
-    outputs: [
-      {
-        components: [
-          { internalType: 'address', name: 'token', type: 'address' },
-          { internalType: 'uint256', name: 'amount', type: 'uint256' },
-          { internalType: 'address', name: 'funder', type: 'address' },
-          { internalType: 'uint256', name: 'timestamp', type: 'uint256' },
-        ],
-        internalType: 'struct PollsContract.Funding[]',
-        name: '',
-        type: 'tuple[]',
-      },
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'address', name: 'token', type: 'address' },
     ],
+    name: 'getPollTokenBalance', // NEW: replaces getPollFundings
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
+    name: 'fundPollWithETH',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'address', name: 'token', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'fundPollWithToken',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'uint256', name: 'optionIndex', type: 'uint256' },
+    ],
+    name: 'vote',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
+    name: 'getActivePolls',
+    outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'pollId', type: 'uint256' }],
+    name: 'isPollActive',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { internalType: 'address', name: 'user', type: 'address' },
+    ],
+    name: 'hasUserVoted',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
   },

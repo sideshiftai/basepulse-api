@@ -13,6 +13,7 @@ import leaderboardRoutes from './routes/leaderboard.routes';
 import preferencesRoutes from './routes/preferences.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import announcementsRoutes from './routes/announcements.routes';
+import gasRoutes from './routes/gas.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -49,6 +50,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/preferences', preferencesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/announcements', announcementsRoutes);
+app.use('/api/gas', gasRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
