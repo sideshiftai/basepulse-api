@@ -159,16 +159,18 @@ export class BlockchainService {
     try {
       const { client, contractAddress } = this.getClientForChain(chainId);
 
-      const result = await client.readContract({
+      await client.readContract({
         address: contractAddress,
         abi: POLLS_CONTRACT_ABI,
         functionName: 'getPoll',
         args: [BigInt(pollId)],
       });
 
-      // Check if poll exists (id > 0)
-      return result[0] > 0n;
+      // If getPoll() succeeds, the poll exists (contract's pollExists modifier passed)
+      // This correctly validates poll ID 0 and all other valid poll IDs
+      return true;
     } catch (error) {
+      // Contract will revert if poll doesn't exist
       return false;
     }
   }
