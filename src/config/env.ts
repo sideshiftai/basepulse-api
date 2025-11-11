@@ -21,6 +21,7 @@ const envSchema = z.object({
 
   // Sideshift
   SIDESHIFT_AFFILIATE_ID: z.string().optional(),
+  SIDESHIFT_SECRET: z.string().optional(),
 
   // CORS
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
@@ -74,6 +75,7 @@ export const config = {
   sideshift: {
     apiUrl: 'https://sideshift.ai/api/v2',
     affiliateId: env.SIDESHIFT_AFFILIATE_ID,
+    secret: env.SIDESHIFT_SECRET,
   },
   cors: {
     origin: env.FRONTEND_URL,

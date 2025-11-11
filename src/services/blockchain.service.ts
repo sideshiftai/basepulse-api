@@ -4,30 +4,64 @@
 
 import { createPublicClient, createWalletClient, http, Address } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { baseSepolia } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { config } from '../config/env';
-import { POLLS_CONTRACT_ADDRESS, POLLS_CONTRACT_ABI } from '../config/contracts';
+import {
+  CHAIN_ID,
+  POLLS_CONTRACT_ADDRESS,
+  POLLS_CONTRACT_ABI,
+  RPC_URL,
+  getNetworkConfig,
+} from '../config/contracts';
 
-// Create public client for reading blockchain data
+// Determine chain object based on environment configuration
+const CHAIN = CHAIN_ID === 8453 ? base : baseSepolia;
+
+// Create public client for reading blockchain data (uses environment-based config)
 export const publicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http('https://sepolia.base.org'),
+  chain: CHAIN,
+  transport: http(RPC_URL),
 });
 
-// Current chain ID for the deployment
-const CURRENT_CHAIN_ID = baseSepolia.id; // 84532
+// Current chain ID for the deployment (from environment)
+const CURRENT_CHAIN_ID = CHAIN_ID;
 
 /**
  * Blockchain service for smart contract interactions
  */
 export class BlockchainService {
   /**
+   * Get blockchain client for specific chain
+   * @param chainId - Optional chain ID (defaults to environment config)
+   * @returns Public client configured for the specified chain
+   */
+  private getClientForChain(chainId?: number) {
+    const targetChainId = chainId || CURRENT_CHAIN_ID;
+    const networkConfig = getNetworkConfig(targetChainId);
+    const chain = targetChainId === 8453 ? base : baseSepolia;
+
+    return {
+      client: createPublicClient({
+        chain,
+        transport: http(networkConfig.rpcUrl),
+      }),
+      contractAddress: networkConfig.pollsContract,
+    };
+  }
+
+  /**
    * Get the chain ID where polls are deployed
    * @param pollId - The poll ID (currently all polls are on the same chain)
+   * @param chainId - Optional explicit chain ID
    * @returns Chain ID (e.g., 84532 for Base Sepolia)
    */
-  getPollChain(pollId: string): number {
-    // Currently all polls are deployed on the same chain
+  getPollChain(pollId: string, chainId?: number): number {
+    // If chainId explicitly provided, use it
+    if (chainId) {
+      return chainId;
+    }
+
+    // Otherwise use environment default
     // In the future, this could query a database or registry
     // to support multi-chain polls
     return CURRENT_CHAIN_ID;
@@ -53,6 +87,7 @@ export class BlockchainService {
         isActive: result[5],
         creator: result[6],
         totalFunding: result[7],
+        distributionMode: result[8], // NEW: added distribution mode
       };
     } catch (error) {
       throw new Error(`Failed to get poll ${pollId}: ${error}`);
@@ -60,23 +95,56 @@ export class BlockchainService {
   }
 
   /**
-   * Get poll funding details
+   * Get poll funding details from events (optimized)
    */
-  async getPollFundings(pollId: bigint) {
+  async getPollFundings(pollId: bigint, chainId?: number) {
     try {
-      const result = await publicClient.readContract({
-        address: POLLS_CONTRACT_ADDRESS,
-        abi: POLLS_CONTRACT_ABI,
-        functionName: 'getPollFundings',
-        args: [pollId],
+      const { client, contractAddress } = this.getClientForChain(chainId);
+
+      // Query PollFunded events for this pollId
+      const logs = await client.getLogs({
+        address: contractAddress,
+        event: {
+          type: 'event',
+          name: 'PollFunded',
+          inputs: [
+            { type: 'uint256', indexed: true, name: 'pollId' },
+            { type: 'address', indexed: true, name: 'funder' },
+            { type: 'address', indexed: false, name: 'token' },
+            { type: 'uint256', indexed: false, name: 'amount' }
+          ]
+        },
+        args: {
+          pollId: pollId,
+        },
+        fromBlock: 0n,
+        toBlock: 'latest'
       });
 
-      return result.map((funding) => ({
-        token: funding.token,
-        amount: funding.amount,
-        funder: funding.funder,
-        timestamp: funding.timestamp,
-      }));
+      // Get block timestamps for each log
+      const fundingsWithTimestamps = await Promise.all(
+        logs.map(async (log) => {
+          try {
+            const block = await client.getBlock({ blockNumber: log.blockNumber });
+            return {
+              token: log.args.token,
+              amount: log.args.amount?.toString() || '0',
+              funder: log.args.funder,
+              timestamp: block.timestamp,
+            };
+          } catch (error) {
+            // Fallback if block fetch fails
+            return {
+              token: log.args.token,
+              amount: log.args.amount?.toString() || '0',
+              funder: log.args.funder,
+              timestamp: 0n,
+            };
+          }
+        })
+      );
+
+      return fundingsWithTimestamps;
     } catch (error) {
       throw new Error(`Failed to get poll fundings ${pollId}: ${error}`);
     }
@@ -84,11 +152,22 @@ export class BlockchainService {
 
   /**
    * Verify that a poll exists and is valid
+   * @param pollId - The poll ID to validate
+   * @param chainId - Optional chain ID (defaults to environment config)
    */
-  async validatePoll(pollId: string): Promise<boolean> {
+  async validatePoll(pollId: string, chainId?: number): Promise<boolean> {
     try {
-      const poll = await this.getPoll(BigInt(pollId));
-      return poll.id > 0n;
+      const { client, contractAddress } = this.getClientForChain(chainId);
+
+      const result = await client.readContract({
+        address: contractAddress,
+        abi: POLLS_CONTRACT_ABI,
+        functionName: 'getPoll',
+        args: [BigInt(pollId)],
+      });
+
+      // Check if poll exists (id > 0)
+      return result[0] > 0n;
     } catch (error) {
       return false;
     }
@@ -148,8 +227,11 @@ export class BlockchainService {
   /**
    * Withdraw funds from a poll (backend automated claim)
    * Requires BACKEND_PRIVATE_KEY environment variable
+   * @param pollId - The poll ID
+   * @param recipient - The recipient address
+   * @param tokens - Array of token addresses to withdraw (use address(0) for ETH)
    */
-  async withdrawFunds(pollId: string, recipient: Address): Promise<`0x${string}`> {
+  async withdrawFunds(pollId: string, recipient: Address, tokens: Address[]): Promise<`0x${string}`> {
     try {
       // Check if backend wallet is configured
       const privateKey = config.backend.privateKey;
@@ -161,16 +243,16 @@ export class BlockchainService {
       const account = privateKeyToAccount(privateKey as `0x${string}`);
       const walletClient = createWalletClient({
         account,
-        chain: baseSepolia,
-        transport: http('https://sepolia.base.org'),
+        chain: CHAIN,
+        transport: http(RPC_URL),
       });
 
-      // Call withdrawFunds on the contract
+      // Call withdrawFunds on the contract (NEW: now requires tokens array)
       const hash = await walletClient.writeContract({
         address: POLLS_CONTRACT_ADDRESS,
         abi: POLLS_CONTRACT_ABI,
         functionName: 'withdrawFunds',
-        args: [BigInt(pollId), recipient],
+        args: [BigInt(pollId), recipient, tokens], // NEW: added tokens parameter
         account,
       });
 

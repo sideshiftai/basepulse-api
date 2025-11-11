@@ -61,17 +61,26 @@ export interface SideshiftPermission {
   createShift: boolean;
 }
 
-export interface CreateFixedShiftRequest {
-  settleAddress: string;
-  affiliateId?: string;
-  settleNetwork?: string;
+// Request to create a quote (step 1 for fixed shifts)
+export interface CreateQuoteRequest {
   depositCoin: string;
   settleCoin: string;
   depositNetwork?: string;
-  depositAmount: string;
-  quoteId?: string;
+  settleNetwork?: string;
+  depositAmount?: string;
+  settleAmount?: string;
+  affiliateId?: string;
+}
+
+// Request to create a fixed shift (step 2 for fixed shifts)
+export interface CreateFixedShiftRequest {
+  quoteId: string;
+  settleAddress: string;
+  affiliateId?: string;
+  settleMemo?: string;
   refundAddress?: string;
-  refundNetwork?: string;
+  refundMemo?: string;
+  externalId?: string;
 }
 
 export interface CreateVariableShiftRequest {
