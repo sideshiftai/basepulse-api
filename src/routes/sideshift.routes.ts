@@ -40,6 +40,33 @@ router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) 
 });
 
 /**
+ * GET /api/sideshift/pair/:depositCoin/:settleCoin
+ * Get pair information including min/max deposit amounts
+ */
+router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, res: Response) => {
+  try {
+    const { depositCoin, settleCoin } = req.params;
+    const { depositNetwork, settleNetwork } = req.query;
+
+    // Get pair information from Sideshift
+    const pairInfo = await sideshiftService.getPair(depositCoin, settleCoin);
+
+    res.json({
+      min: pairInfo.min,
+      max: pairInfo.max,
+      rate: pairInfo.rate,
+      depositCoin: pairInfo.depositCoin,
+      settleCoin: pairInfo.settleCoin,
+      depositNetwork: depositNetwork || pairInfo.depositNetwork,
+      settleNetwork: settleNetwork || pairInfo.settleNetwork,
+    });
+  } catch (error) {
+    logger.error('Failed to get pair info', { error });
+    res.status(500).json({ error: 'Failed to fetch pair information' });
+  }
+});
+
+/**
  * POST /api/sideshift/create-shift
  * Create a new shift order
  */

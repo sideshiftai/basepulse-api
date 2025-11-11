@@ -37,6 +37,16 @@ export interface SideshiftQuote {
   affiliateId?: string;
 }
 
+export interface SideshiftPairInfo {
+  min: string;            // Minimum deposit amount
+  max: string;            // Maximum deposit amount
+  rate: string;           // Exchange rate
+  depositCoin: string;    // Source cryptocurrency
+  settleCoin: string;     // Destination cryptocurrency
+  depositNetwork: string; // Source blockchain network
+  settleNetwork: string;  // Destination blockchain network
+}
+
 export interface SideshiftOrder {
   id: string;
   createdAt: string;
