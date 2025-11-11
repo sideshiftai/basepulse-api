@@ -27,8 +27,8 @@ const envSchema = z.object({
   SIDESHIFT_AFFILIATE_ID: z.string().optional(),
   SIDESHIFT_SECRET: z.string().optional(),
 
-  // CORS
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  // CORS - Comma-separated list of frontend URLs
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
 
   // Security
   WEBHOOK_SECRET: z.string().min(32),
@@ -86,7 +86,18 @@ export const config = {
     secret: env.SIDESHIFT_SECRET,
   },
   cors: {
-    origin: env.FRONTEND_URL,
+    origin: (() => {
+      const urls = env.FRONTEND_URL.split(',').map(url => url.trim());
+      // Validate each URL
+      urls.forEach(url => {
+        try {
+          new URL(url);
+        } catch (error) {
+          throw new Error(`Invalid URL in FRONTEND_URL: ${url}`);
+        }
+      });
+      return urls;
+    })(),
   },
   security: {
     webhookSecret: env.WEBHOOK_SECRET,

@@ -13,16 +13,16 @@ const ethereumAddress = z.string().refine(
 
 // Create shift request validation
 export const createShiftSchema = z.object({
-  pollId: z.string().min(1, 'Poll ID is required'),
+  pollId: z.string().optional(), // Optional - required only for poll-related purposes
   userAddress: ethereumAddress,
-  purpose: z.enum(['fund_poll', 'claim_reward']),
+  purpose: z.enum(['fund_poll', 'claim_reward', 'bridge']), // Added 'bridge' for general transfers
   sourceCoin: z.string().min(1, 'Source coin is required'),
   destCoin: z.string().min(1, 'Destination coin is required'),
   sourceNetwork: z.string().optional(),
   destNetwork: z.string().optional(),
   sourceAmount: z.string().optional(),
   refundAddress: ethereumAddress.optional(),
-  chainId: z.number().optional(), // Chain ID where the poll exists
+  chainId: z.number().optional(), // Chain ID where the poll exists (for poll-related purposes)
 });
 
 export type CreateShiftInput = z.infer<typeof createShiftSchema>;

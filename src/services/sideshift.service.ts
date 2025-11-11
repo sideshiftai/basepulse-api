@@ -29,6 +29,7 @@ export class SideshiftService {
       headers['x-sideshift-secret'] = config.sideshift.secret;
     }
 
+    console.log('config.sideshift.apiUrl', config.sideshift.apiUrl);
     this.client = axios.create({
       baseURL: config.sideshift.apiUrl,
       headers,
@@ -62,9 +63,28 @@ export class SideshiftService {
 
   /**
    * Get pair information (exchange rates and limits)
+   * SideShift API format: /pair/{coin}-{network}/{coin}-{network}
+   * Example: /pair/usdc-base/usdc-bsc
    */
-  async getPair(depositCoin: string, settleCoin: string) {
-    const response = await this.client.get(`/pair/${depositCoin}/${settleCoin}`);
+  async getPair(
+    depositCoin: string,
+    settleCoin: string,
+    depositNetwork?: string,
+    settleNetwork?: string
+  ) {
+    // SideShift API format: /pair/{coin}-{network}/{coin}-{network}
+    const depositPair = depositNetwork
+      ? `${depositCoin.toLowerCase()}-${depositNetwork.toLowerCase()}`
+      : depositCoin.toLowerCase();
+
+    const settlePair = settleNetwork
+      ? `${settleCoin.toLowerCase()}-${settleNetwork.toLowerCase()}`
+      : settleCoin.toLowerCase();
+
+    const url = `/pair/${depositPair}/${settlePair}`;
+    console.log('SideShift API URL:', url);
+    const response = await this.client.get(url);
+    console.log('SideShift API response:', response.data);
     return response.data;
   }
 

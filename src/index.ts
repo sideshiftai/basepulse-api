@@ -66,7 +66,7 @@ const PORT = config.server.port;
 app.listen(PORT, () => {
   logger.info(`🚀 BasePulse API running on port ${PORT}`);
   logger.info(`Environment: ${config.server.env}`);
-  logger.info(`Frontend URL: ${config.cors.origin}`);
+  logger.info(`Allowed CORS origins: ${Array.isArray(config.cors.origin) ? config.cors.origin.join(', ') : config.cors.origin}`);
   logger.info(`Sideshift API: ${config.sideshift.apiUrl}`);
 });
 
