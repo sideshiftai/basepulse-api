@@ -118,7 +118,7 @@ export class GasService {
       // This is a simplified implementation
       // In production, integrate with Chainlink, CoinGecko, or similar
       const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
-      const data = await response.json();
+      const data = await response.json() as { ethereum?: { usd?: number } };
       return data.ethereum?.usd || 3500; // Fallback to approximate price
     } catch (error) {
       console.error('Failed to fetch ETH price:', error);

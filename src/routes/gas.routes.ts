@@ -41,7 +41,7 @@ router.get('/estimate-funding-fee', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         error: 'Invalid parameters',
-        details: error.errors,
+        details: error.issues,
       });
     }
 
