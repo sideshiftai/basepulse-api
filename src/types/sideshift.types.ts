@@ -21,6 +21,15 @@ export interface SideshiftAsset {
   hasMemo: boolean;       // Whether the asset requires a memo
   fixedOnly: string[];    // Networks that only support fixed-rate shifts
   variableOnly: string[]; // Networks that only support variable-rate shifts
+  tokenDetails?: {        // Token contract details per network (for ERC20/BEP20/etc tokens)
+    [network: string]: {
+      contractAddress: string;  // Token contract address on this network
+      decimals: number;         // Token decimals on this network
+    };
+  };
+  networksWithMemo?: string[];  // Networks that require memo for this asset
+  depositOffline?: boolean;     // Whether deposits are offline for this asset
+  settleOffline?: boolean;      // Whether settlements are offline for this asset
 }
 
 export interface SideshiftQuote {

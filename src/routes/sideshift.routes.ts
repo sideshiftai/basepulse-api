@@ -30,6 +30,7 @@ router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) 
         coin: asset.coin,
         name: asset.name,
         networks: asset.networks,
+        tokenDetails: asset.tokenDetails,
       })),
       lastUpdated: new Date(),
     });
@@ -47,9 +48,18 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
   try {
     const { depositCoin, settleCoin } = req.params;
     const { depositNetwork, settleNetwork } = req.query;
+    console.log('depositNetwork', depositNetwork);
+    console.log('settleNetwork', settleNetwork);
+    console.log('depositCoin', depositCoin);
+    console.log('settleCoin', settleCoin);
 
     // Get pair information from Sideshift
-    const pairInfo = await sideshiftService.getPair(depositCoin, settleCoin);
+    const pairInfo = await sideshiftService.getPair(
+      depositCoin,
+      settleCoin,
+      depositNetwork as string | undefined,
+      settleNetwork as string | undefined
+    );
 
     res.json({
       min: pairInfo.min,
@@ -57,8 +67,8 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
       rate: pairInfo.rate,
       depositCoin: pairInfo.depositCoin,
       settleCoin: pairInfo.settleCoin,
-      depositNetwork: depositNetwork || pairInfo.depositNetwork,
-      settleNetwork: settleNetwork || pairInfo.settleNetwork,
+      depositNetwork: pairInfo.depositNetwork,
+      settleNetwork: pairInfo.settleNetwork,
     });
   } catch (error) {
     logger.error('Failed to get pair info', { error });
@@ -75,17 +85,35 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     // Validate request
     const data = createShiftSchema.parse(req.body);
 
-    // Validate poll exists (using chainId if provided, otherwise env default)
-    const pollExists = await blockchainService.validatePoll(data.pollId, data.chainId);
-    if (!pollExists) {
-      return res.status(404).json({ error: 'Poll not found' });
+    // Validate poll-related purposes
+    if (data.purpose === 'fund_poll' || data.purpose === 'claim_reward') {
+      // Require pollId for poll-related purposes
+      if (!data.pollId) {
+        return res.status(400).json({ error: 'pollId is required for this purpose' });
+      }
+
+      // Validate poll exists (using chainId if provided, otherwise env default)
+      const pollExists = await blockchainService.validatePoll(data.pollId, data.chainId);
+      if (!pollExists) {
+        return res.status(404).json({ error: 'Poll not found' });
+      }
+
+      // For claim_reward, verify poll has ended and has funds
+      if (data.purpose === 'claim_reward') {
+        const { canClaim, reason } = await blockchainService.canClaimRewards(data.pollId);
+        if (!canClaim) {
+          return res.status(400).json({ error: reason });
+        }
+      }
     }
 
-    // For claim_reward, verify poll has ended and has funds
-    if (data.purpose === 'claim_reward') {
-      const { canClaim, reason } = await blockchainService.canClaimRewards(data.pollId);
-      if (!canClaim) {
-        return res.status(400).json({ error: reason });
+    // For bridge purpose, validate networks are provided
+    if (data.purpose === 'bridge') {
+      if (!data.sourceNetwork) {
+        return res.status(400).json({ error: 'sourceNetwork is required for bridge' });
+      }
+      if (!data.destNetwork) {
+        return res.status(400).json({ error: 'destNetwork is required for bridge' });
       }
     }
 
@@ -146,9 +174,19 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
         destCoin,
         preferredToken: destCoin,
       });
+    } else if (data.purpose === 'bridge') {
+      // BRIDGE: User-specified source and destination for general bridging
+      // Networks must be provided by user (validated above)
+
+      logger.info('Bridge shift configuration', {
+        sourceCoin,
+        destCoin,
+        sourceNetwork,
+        destNetwork,
+      });
     }
 
-    // Get recommended networks if still not provided
+    // Get recommended networks if still not provided (for poll-related purposes)
     if (!sourceNetwork || !destNetwork) {
       const networks = await sideshiftService.getRecommendedNetworks(
         sourceCoin,
@@ -174,7 +212,7 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     // Store shift in database
     const storedShift = await shiftsService.create({
       sideshiftOrderId: sideshiftOrder.id,
-      pollId: data.pollId,
+      pollId: data.pollId || 'bridge', // Use 'bridge' placeholder for general bridges
       userAddress: data.userAddress as Address,
       purpose: data.purpose,
       sourceAsset: sourceCoin,
