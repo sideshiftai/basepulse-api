@@ -249,7 +249,11 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
       },
     });
   } catch (error) {
-    logger.error('Failed to create shift', { error });
+    logger.error('Failed to create shift', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: (error as Error).message });
   }
 });
