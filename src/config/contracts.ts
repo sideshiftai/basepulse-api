@@ -3,18 +3,19 @@
  */
 
 import { Address } from 'viem';
+import { config } from './env';
 
 // Network chain IDs
 export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
-// RPC URLs for each network
-export const BASE_MAINNET_RPC = 'https://mainnet.base.org';
-export const BASE_SEPOLIA_RPC = 'https://sepolia.base.org';
+// RPC URLs for each network (with fallback defaults)
+export const BASE_MAINNET_RPC = config.blockchain.baseMainnetRpcUrl || 'https://mainnet.base.org';
+export const BASE_SEPOLIA_RPC = config.blockchain.baseSepoliaRpcUrl || 'https://sepolia.base.org';
 
-// Contract addresses for each network
-const BASE_MAINNET_POLLS_CONTRACT: Address = '0xfc0323F3c5eD271564Ca8F3d4C5FfAD32D553893';
-const BASE_SEPOLIA_POLLS_CONTRACT: Address = '0xdfb6881ad34F26D57c3146d335848EDba21dFb6f'; // Optimized contract deployed 2025-01-10
+// Contract addresses for each network (from environment variables)
+const BASE_MAINNET_POLLS_CONTRACT: Address = config.blockchain.baseMainnetPollsContract as Address;
+const BASE_SEPOLIA_POLLS_CONTRACT: Address = config.blockchain.baseSepoliaPollsContract as Address;
 
 // Environment-based configuration
 const isProduction = process.env.NODE_ENV === 'production';
