@@ -130,7 +130,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
       // FUNDING: User deposits any token -> Convert to USDC/ETH on poll's chain
 
       // Get the chain where the poll is deployed (use provided chainId or env default)
-      const pollChainId = blockchainService.getPollChain(data.pollId, data.chainId);
+      // pollId is guaranteed to exist due to validation above
+      const pollChainId = blockchainService.getPollChain(data.pollId!, data.chainId);
       const pollNetwork = getNetworkForChain(pollChainId);
 
       // Destination network is always the poll's chain
@@ -153,7 +154,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
       // CLAIMING: Poll rewards (ETH on poll chain) -> Convert to user's preferred token/network
 
       // Get the chain where the poll is deployed (source of rewards, use provided chainId or env default)
-      const pollChainId = blockchainService.getPollChain(data.pollId, data.chainId);
+      // pollId is guaranteed to exist due to validation above
+      const pollChainId = blockchainService.getPollChain(data.pollId!, data.chainId);
       const pollNetwork = getNetworkForChain(pollChainId);
 
       // Source is always the poll's rewards (ETH on poll's chain)
