@@ -18,21 +18,22 @@ import {
 
 export class SideshiftService {
   private client: AxiosInstance;
+  private baseHeaders: Record<string, string>;
 
   constructor() {
-    const headers: Record<string, string> = {
+    this.baseHeaders = {
       'Content-Type': 'application/json',
     };
 
     // Add secret header if configured
     if (config.sideshift.secret) {
-      headers['x-sideshift-secret'] = config.sideshift.secret;
+      this.baseHeaders['x-sideshift-secret'] = config.sideshift.secret;
     }
 
     console.log('config.sideshift.apiUrl', config.sideshift.apiUrl);
     this.client = axios.create({
       baseURL: config.sideshift.apiUrl,
-      headers,
+      headers: this.baseHeaders,
       timeout: 30000,
     });
 
@@ -54,10 +55,23 @@ export class SideshiftService {
   }
 
   /**
+   * Get headers with optional user IP
+   */
+  private getHeaders(userIp?: string): Record<string, string> {
+    const headers = { ...this.baseHeaders };
+    if (userIp) {
+      headers['x-user-ip'] = userIp;
+    }
+    return headers;
+  }
+
+  /**
    * Get all supported coins/assets
    */
-  async getCoins(): Promise<SideshiftAsset[]> {
-    const response = await this.client.get<SideshiftAsset[]>('/coins');
+  async getCoins(userIp?: string): Promise<SideshiftAsset[]> {
+    const response = await this.client.get<SideshiftAsset[]>('/coins', {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
@@ -70,7 +84,8 @@ export class SideshiftService {
     depositCoin: string,
     settleCoin: string,
     depositNetwork?: string,
-    settleNetwork?: string
+    settleNetwork?: string,
+    userIp?: string
   ) {
     // SideShift API format: /pair/{coin}-{network}/{coin}-{network}
     const depositPair = depositNetwork
@@ -83,7 +98,9 @@ export class SideshiftService {
 
     const url = `/pair/${depositPair}/${settlePair}`;
     console.log('SideShift API URL:', url);
-    const response = await this.client.get(url);
+    const response = await this.client.get(url, {
+      headers: this.getHeaders(userIp),
+    });
     console.log('SideShift API response:', response.data);
     return response.data;
   }
@@ -91,21 +108,25 @@ export class SideshiftService {
   /**
    * Get current permissions (rate limits)
    */
-  async getPermissions(): Promise<SideshiftPermission> {
-    const response = await this.client.get<SideshiftPermission>('/permissions');
+  async getPermissions(userIp?: string): Promise<SideshiftPermission> {
+    const response = await this.client.get<SideshiftPermission>('/permissions', {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
   /**
    * Create a fixed-rate quote (Step 1 for fixed shifts)
    */
-  async createQuote(params: CreateQuoteRequest): Promise<SideshiftQuote> {
+  async createQuote(params: CreateQuoteRequest, userIp?: string): Promise<SideshiftQuote> {
     const payload = {
       ...params,
       affiliateId: params.affiliateId || config.sideshift.affiliateId,
     };
 
-    const response = await this.client.post<SideshiftQuote>('/quotes', payload);
+    const response = await this.client.post<SideshiftQuote>('/quotes', payload, {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
@@ -113,7 +134,7 @@ export class SideshiftService {
    * Create a fixed-rate shift (Step 2 for fixed shifts)
    * Must be called after createQuote() to get a quoteId
    */
-  async createFixedShift(params: CreateFixedShiftRequest): Promise<SideshiftOrder> {
+  async createFixedShift(params: CreateFixedShiftRequest, userIp?: string): Promise<SideshiftOrder> {
     // Only send the parameters that the /shifts/fixed endpoint accepts
     const payload = {
       quoteId: params.quoteId,
@@ -125,28 +146,34 @@ export class SideshiftService {
       ...(params.externalId ? { externalId: params.externalId } : {}),
     };
 
-    const response = await this.client.post<SideshiftOrder>('/shifts/fixed', payload);
+    const response = await this.client.post<SideshiftOrder>('/shifts/fixed', payload, {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
   /**
    * Create a variable-rate shift
    */
-  async createVariableShift(params: CreateVariableShiftRequest): Promise<SideshiftOrder> {
+  async createVariableShift(params: CreateVariableShiftRequest, userIp?: string): Promise<SideshiftOrder> {
     const payload = {
       ...params,
       affiliateId: params.affiliateId || config.sideshift.affiliateId,
     };
 
-    const response = await this.client.post<SideshiftOrder>('/shifts/variable', payload);
+    const response = await this.client.post<SideshiftOrder>('/shifts/variable', payload, {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
   /**
    * Get shift status by order ID
    */
-  async getShift(orderId: string): Promise<SideshiftOrder> {
-    const response = await this.client.get<SideshiftOrder>(`/shifts/${orderId}`);
+  async getShift(orderId: string, userIp?: string): Promise<SideshiftOrder> {
+    const response = await this.client.get<SideshiftOrder>(`/shifts/${orderId}`, {
+      headers: this.getHeaders(userIp),
+    });
     return response.data;
   }
 
@@ -165,7 +192,8 @@ export class SideshiftService {
       depositAmount?: string;
       refundAddress?: string;
       affiliateId?: string;
-    }
+    },
+    userIp?: string
   ): Promise<SideshiftOrder> {
     if (type === 'fixed') {
       // Step 1: Create a quote first
@@ -180,7 +208,7 @@ export class SideshiftService {
         settleNetwork: params.settleNetwork,
         depositAmount: params.depositAmount,
         affiliateId: params.affiliateId,
-      });
+      }, userIp);
 
       // Step 2: Create the fixed shift using the quoteId
       return this.createFixedShift({
@@ -188,7 +216,7 @@ export class SideshiftService {
         settleAddress: params.settleAddress,
         refundAddress: params.refundAddress,
         affiliateId: params.affiliateId,
-      });
+      }, userIp);
     } else {
       // Variable shifts can be created directly
       return this.createVariableShift({
@@ -199,15 +227,15 @@ export class SideshiftService {
         settleNetwork: params.settleNetwork,
         refundAddress: params.refundAddress,
         affiliateId: params.affiliateId,
-      });
+      }, userIp);
     }
   }
 
   /**
    * Helper: Get recommended networks for a coin pair
    */
-  async getRecommendedNetworks(depositCoin: string, settleCoin: string) {
-    const coins = await this.getCoins();
+  async getRecommendedNetworks(depositCoin: string, settleCoin: string, userIp?: string) {
+    const coins = await this.getCoins(userIp);
 
     const depositCoinData = coins.find((c) => c.coin.toLowerCase() === depositCoin.toLowerCase());
     const settleCoinData = coins.find((c) => c.coin.toLowerCase() === settleCoin.toLowerCase());

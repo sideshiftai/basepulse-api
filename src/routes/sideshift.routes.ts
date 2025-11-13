@@ -14,6 +14,7 @@ import { Address } from 'viem';
 import { apiLimiter, strictLimiter, webhookLimiter } from '../middleware/rate-limit';
 import { getNetworkForChain } from '../config/chains';
 import { getDefaultDestinationCoin } from '../utils/currency-utils';
+import { getUserIp } from '../utils/request-utils';
 
 const router = Router();
 
@@ -23,7 +24,8 @@ const router = Router();
  */
 router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) => {
   try {
-    const assets = await sideshiftService.getCoins();
+    const userIp = getUserIp(req);
+    const assets = await sideshiftService.getCoins(userIp);
 
     res.json({
       assets: assets.map((asset) => ({
@@ -48,6 +50,7 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
   try {
     const { depositCoin, settleCoin } = req.params;
     const { depositNetwork, settleNetwork } = req.query;
+    const userIp = getUserIp(req);
     console.log('depositNetwork', depositNetwork);
     console.log('settleNetwork', settleNetwork);
     console.log('depositCoin', depositCoin);
@@ -58,7 +61,8 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
       depositCoin,
       settleCoin,
       depositNetwork as string | undefined,
-      settleNetwork as string | undefined
+      settleNetwork as string | undefined,
+      userIp
     );
 
     res.json({
@@ -82,6 +86,9 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
  */
 router.post('/create-shift', strictLimiter, async (req: Request, res: Response) => {
   try {
+    // Extract user IP for SideShift API
+    const userIp = getUserIp(req);
+
     // Validate request
     const data = createShiftSchema.parse(req.body);
 
@@ -192,14 +199,15 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
     if (!sourceNetwork || !destNetwork) {
       const networks = await sideshiftService.getRecommendedNetworks(
         sourceCoin,
-        destCoin
+        destCoin,
+        userIp
       );
       sourceNetwork = sourceNetwork || networks.defaultDepositNetwork;
       destNetwork = destNetwork || networks.defaultSettleNetwork;
     }
 
     // Create Sideshift order
-    const sideshiftOrder = await sideshiftService.createShift(shiftType, {
+    const shiftData = {
       settleAddress: data.userAddress, // User receives funds
       depositCoin: sourceCoin,
       settleCoin: destCoin,
@@ -209,7 +217,8 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
         ? { depositAmount: data.sourceAmount }
         : {}),
       ...(data.refundAddress ? { refundAddress: data.refundAddress } : {}),
-    });
+    };
+    const sideshiftOrder = await sideshiftService.createShift(shiftType, shiftData, userIp);
 
     // Store shift in database
     const storedShift = await shiftsService.create({
@@ -265,6 +274,7 @@ router.post('/create-shift', strictLimiter, async (req: Request, res: Response) 
 router.get('/shift-status/:id', apiLimiter, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userIp = getUserIp(req);
 
     // Get from our database
     const storedShift = await shiftsService.getById(id);
@@ -273,7 +283,7 @@ router.get('/shift-status/:id', apiLimiter, async (req: Request, res: Response) 
     }
 
     // Get latest status from Sideshift
-    const sideshiftData = await sideshiftService.getShift(storedShift.sideshiftOrderId);
+    const sideshiftData = await sideshiftService.getShift(storedShift.sideshiftOrderId, userIp);
 
     // Update our database if status changed
     if (sideshiftData.status !== storedShift.status) {
