@@ -56,12 +56,12 @@ export class SideshiftService {
 
   /**
    * Get headers with optional user IP
+   * Note: SideShift API requires x-user-ip header to be set
    */
   private getHeaders(userIp?: string): Record<string, string> {
     const headers = { ...this.baseHeaders };
-    if (userIp) {
-      headers['x-user-ip'] = userIp;
-    }
+    // SideShift requires x-user-ip header - use provided IP or fallback to localhost for testing
+    headers['x-user-ip'] = userIp || '127.0.0.1';
     return headers;
   }
 

@@ -25,6 +25,7 @@ const router = Router();
 router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) => {
   try {
     const userIp = getUserIp(req);
+    logger.info('Fetching supported assets', { userIp, headers: req.headers });
     const assets = await sideshiftService.getCoins(userIp);
 
     res.json({
@@ -37,7 +38,11 @@ router.get('/supported-assets', apiLimiter, async (req: Request, res: Response) 
       lastUpdated: new Date(),
     });
   } catch (error) {
-    logger.error('Failed to get supported assets', { error });
+    logger.error('Failed to get supported assets', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to fetch supported assets' });
   }
 });
@@ -75,7 +80,11 @@ router.get('/pair/:depositCoin/:settleCoin', apiLimiter, async (req: Request, re
       settleNetwork: pairInfo.settleNetwork,
     });
   } catch (error) {
-    logger.error('Failed to get pair info', { error });
+    logger.error('Failed to get pair info', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to fetch pair information' });
   }
 });
@@ -297,7 +306,11 @@ router.get('/shift-status/:id', apiLimiter, async (req: Request, res: Response) 
       sideshiftData,
     });
   } catch (error) {
-    logger.error('Failed to get shift status', { error });
+    logger.error('Failed to get shift status', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to get shift status' });
   }
 });
@@ -383,7 +396,11 @@ router.post('/webhook', webhookLimiter, webhookAuth, async (req: Request, res: R
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Webhook processing failed', { error });
+    logger.error('Webhook processing failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
@@ -398,7 +415,11 @@ router.get('/user/:address', apiLimiter, async (req: Request, res: Response) => 
     const shifts = await shiftsService.getByUserAddress(address as Address);
     res.json({ shifts });
   } catch (error) {
-    logger.error('Failed to get user shifts', { error });
+    logger.error('Failed to get user shifts', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to get user shifts' });
   }
 });
@@ -413,7 +434,11 @@ router.get('/poll/:pollId', apiLimiter, async (req: Request, res: Response) => {
     const shifts = await shiftsService.getByPollId(pollId);
     res.json({ shifts });
   } catch (error) {
-    logger.error('Failed to get poll shifts', { error });
+    logger.error('Failed to get poll shifts', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to get poll shifts' });
   }
 });
@@ -453,7 +478,11 @@ router.post('/shift/:shiftId/link-funding', apiLimiter, async (req: Request, res
       shift: updated,
     });
   } catch (error) {
-    logger.error('Failed to link funding transaction', { error });
+    logger.error('Failed to link funding transaction', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      details: error,
+    });
     res.status(500).json({ error: 'Failed to link funding transaction' });
   }
 });
