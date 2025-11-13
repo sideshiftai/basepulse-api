@@ -1,0 +1,863 @@
+{
+  "id": "69d9dea6-6f9f-4caa-8302-d874c0102890",
+  "prevId": "80d9e611-9980-44d3-8fe8-7ab229f948f9",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.Poll": {
+      "name": "Poll",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "chainId": {
+          "name": "chainId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pollId": {
+          "name": "pollId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "distributionMode": {
+          "name": "distributionMode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'MANUAL_PULL'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "Poll_chainId_idx": {
+          "name": "Poll_chainId_idx",
+          "columns": [
+            {
+              "expression": "chainId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Poll_pollId_idx": {
+          "name": "Poll_pollId_idx",
+          "columns": [
+            {
+              "expression": "pollId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Poll_chainId_pollId_key": {
+          "name": "Poll_chainId_pollId_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "chainId",
+            "pollId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.DistributionLog": {
+      "name": "DistributionLog",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pollId": {
+          "name": "pollId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient": {
+          "name": "recipient",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0x0000000000000000000000000000000000000000'"
+        },
+        "txHash": {
+          "name": "txHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "eventType": {
+          "name": "eventType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "DistributionLog_pollId_idx": {
+          "name": "DistributionLog_pollId_idx",
+          "columns": [
+            {
+              "expression": "pollId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "DistributionLog_recipient_idx": {
+          "name": "DistributionLog_recipient_idx",
+          "columns": [
+            {
+              "expression": "recipient",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "DistributionLog_eventType_idx": {
+          "name": "DistributionLog_eventType_idx",
+          "columns": [
+            {
+              "expression": "eventType",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "DistributionLog_timestamp_idx": {
+          "name": "DistributionLog_timestamp_idx",
+          "columns": [
+            {
+              "expression": "timestamp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "DistributionLog_pollId_Poll_id_fk": {
+          "name": "DistributionLog_pollId_Poll_id_fk",
+          "tableFrom": "DistributionLog",
+          "tableTo": "Poll",
+          "columnsFrom": [
+            "pollId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.UserPreference": {
+      "name": "UserPreference",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preferredToken": {
+          "name": "preferredToken",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "autoClaimEnabled": {
+          "name": "autoClaimEnabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "UserPreference_address_idx": {
+          "name": "UserPreference_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "UserPreference_address_unique": {
+          "name": "UserPreference_address_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "address"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Leaderboard": {
+      "name": "Leaderboard",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "totalRewards": {
+          "name": "totalRewards",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "pollsParticipated": {
+          "name": "pollsParticipated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "totalVotes": {
+          "name": "totalVotes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "pollsCreated": {
+          "name": "pollsCreated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "lastUpdated": {
+          "name": "lastUpdated",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "Leaderboard_address_idx": {
+          "name": "Leaderboard_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Leaderboard_totalRewards_idx": {
+          "name": "Leaderboard_totalRewards_idx",
+          "columns": [
+            {
+              "expression": "totalRewards",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Leaderboard_pollsParticipated_idx": {
+          "name": "Leaderboard_pollsParticipated_idx",
+          "columns": [
+            {
+              "expression": "pollsParticipated",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Leaderboard_totalVotes_idx": {
+          "name": "Leaderboard_totalVotes_idx",
+          "columns": [
+            {
+              "expression": "totalVotes",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Leaderboard_address_unique": {
+          "name": "Leaderboard_address_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "address"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Shift": {
+      "name": "Shift",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sideshiftOrderId": {
+          "name": "sideshiftOrderId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pollId": {
+          "name": "pollId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userAddress": {
+          "name": "userAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sourceAsset": {
+          "name": "sourceAsset",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destAsset": {
+          "name": "destAsset",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sourceNetwork": {
+          "name": "sourceNetwork",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destNetwork": {
+          "name": "destNetwork",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sourceAmount": {
+          "name": "sourceAmount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destAmount": {
+          "name": "destAmount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depositAddress": {
+          "name": "depositAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settleAddress": {
+          "name": "settleAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shiftType": {
+          "name": "shiftType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depositTxHash": {
+          "name": "depositTxHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "settleTxHash": {
+          "name": "settleTxHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contractTxHash": {
+          "name": "contractTxHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingTxHash": {
+          "name": "fundingTxHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completedAt": {
+          "name": "completedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expiresAt": {
+          "name": "expiresAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "Shift_userAddress_idx": {
+          "name": "Shift_userAddress_idx",
+          "columns": [
+            {
+              "expression": "userAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Shift_pollId_idx": {
+          "name": "Shift_pollId_idx",
+          "columns": [
+            {
+              "expression": "pollId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Shift_status_idx": {
+          "name": "Shift_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Shift_purpose_idx": {
+          "name": "Shift_purpose_idx",
+          "columns": [
+            {
+              "expression": "purpose",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Shift_createdAt_idx": {
+          "name": "Shift_createdAt_idx",
+          "columns": [
+            {
+              "expression": "createdAt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Shift_fundingTxHash_idx": {
+          "name": "Shift_fundingTxHash_idx",
+          "columns": [
+            {
+              "expression": "fundingTxHash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Shift_sideshiftOrderId_unique": {
+          "name": "Shift_sideshiftOrderId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "sideshiftOrderId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Checkpoint": {
+      "name": "Checkpoint",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "chainId": {
+          "name": "chainId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastBlockNumber": {
+          "name": "lastBlockNumber",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastProcessedAt": {
+          "name": "lastProcessedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Checkpoint_chainId_unique": {
+          "name": "Checkpoint_chainId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "chainId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Announcement": {
+      "name": "Announcement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkText": {
+          "name": "linkText",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Learn More'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "startDate": {
+          "name": "startDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "endDate": {
+          "name": "endDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissible": {
+          "name": "dismissible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
