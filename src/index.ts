@@ -19,6 +19,10 @@ import { logger } from './utils/logger';
 // Create Express app
 const app = express();
 
+// Trust proxy - required when behind reverse proxies (Render, Cloudflare, etc.)
+// This allows Express to trust X-Forwarded-* headers for correct IP detection
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors({
   origin: config.cors.origin,
