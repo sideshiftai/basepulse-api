@@ -14,6 +14,9 @@ import preferencesRoutes from './routes/preferences.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import announcementsRoutes from './routes/announcements.routes';
 import gasRoutes from './routes/gas.routes';
+import questsRoutes from './routes/quests.routes';
+import badgesRoutes from './routes/badges.routes';
+import levelsRoutes from './routes/levels.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -55,6 +58,9 @@ app.use('/api/preferences', preferencesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/gas', gasRoutes);
+app.use('/api/quests', questsRoutes);
+app.use('/api/badges', badgesRoutes);
+app.use('/api/levels', levelsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
