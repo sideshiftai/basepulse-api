@@ -253,4 +253,63 @@ router.post('/:id/deactivate', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/creator-quests/:id/share-proof
+ * Submit share proof for a share_poll quest
+ */
+router.post('/:id/share-proof', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { participantAddress, pollId, platform, shareUrl } = req.body;
+
+    if (!participantAddress || !pollId || !platform || !shareUrl) {
+      return res.status(400).json({
+        error: 'Missing required fields: participantAddress, pollId, platform, shareUrl',
+      });
+    }
+
+    // Validate platform
+    const validPlatforms = ['twitter', 'facebook', 'linkedin', 'farcaster'];
+    if (!validPlatforms.includes(platform)) {
+      return res.status(400).json({
+        error: `Invalid platform. Must be one of: ${validPlatforms.join(', ')}`,
+      });
+    }
+
+    const result = await creatorQuestsService.submitShareProof({
+      questId: id,
+      participantAddress,
+      pollId,
+      platform,
+      shareUrl,
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Failed to submit share proof', { error });
+    res.status(400).json({ error: error.message || 'Failed to submit share proof' });
+  }
+});
+
+/**
+ * GET /api/creator-quests/:id/share-proofs
+ * Get share proofs for a participant's quest
+ */
+router.get('/:id/share-proofs', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { participant } = req.query;
+
+    if (!participant) {
+      return res.status(400).json({ error: 'participant query parameter is required' });
+    }
+
+    const shareProofs = await creatorQuestsService.getShareProofs(id, participant as string);
+    res.json({ shareProofs });
+  } catch (error) {
+    logger.error('Failed to get share proofs', { error });
+    res.status(500).json({ error: 'Failed to fetch share proofs' });
+  }
+});
+
 export default router;

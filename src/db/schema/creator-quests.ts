@@ -82,8 +82,34 @@ export const creatorQuestParticipations = pgTable('CreatorQuestParticipation', {
   completedIdx: index('CreatorQuestParticipation_completed_idx').on(table.isCompleted),
 }));
 
+/**
+ * Share platform types for share_poll quest verification
+ */
+export type SharePlatform = 'twitter' | 'facebook' | 'linkedin' | 'farcaster';
+
+/**
+ * Creator quest share proofs - tracks poll shares for verification
+ */
+export const creatorQuestShareProofs = pgTable('CreatorQuestShareProof', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  questId: uuid('questId').references(() => creatorQuests.id).notNull(),
+  participantAddress: text('participantAddress').notNull(),
+  pollId: text('pollId').notNull(), // On-chain poll ID
+  platform: text('platform').notNull().$type<SharePlatform>(),
+  shareUrl: text('shareUrl').notNull(),
+  isVerified: boolean('isVerified').default(false).notNull(),
+  verifiedAt: timestamp('verifiedAt'),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+}, (table) => ({
+  questParticipantIdx: index('CreatorQuestShareProof_quest_participant_idx').on(table.questId, table.participantAddress),
+  pollIdx: index('CreatorQuestShareProof_poll_idx').on(table.pollId),
+  uniqueShare: unique('CreatorQuestShareProof_unique_share').on(table.questId, table.participantAddress, table.pollId, table.platform),
+}));
+
 // Type exports
 export type CreatorQuest = typeof creatorQuests.$inferSelect;
 export type NewCreatorQuest = typeof creatorQuests.$inferInsert;
 export type CreatorQuestParticipation = typeof creatorQuestParticipations.$inferSelect;
 export type NewCreatorQuestParticipation = typeof creatorQuestParticipations.$inferInsert;
+export type CreatorQuestShareProof = typeof creatorQuestShareProofs.$inferSelect;
+export type NewCreatorQuestShareProof = typeof creatorQuestShareProofs.$inferInsert;
