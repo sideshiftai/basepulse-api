@@ -17,6 +17,11 @@ import gasRoutes from './routes/gas.routes';
 import questsRoutes from './routes/quests.routes';
 import badgesRoutes from './routes/badges.routes';
 import levelsRoutes from './routes/levels.routes';
+// Creator quest system routes
+import membershipRoutes from './routes/membership.routes';
+import seasonsRoutes from './routes/seasons.routes';
+import pointsRoutes from './routes/points.routes';
+import creatorQuestsRoutes from './routes/creator-quests.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -61,6 +66,11 @@ app.use('/api/gas', gasRoutes);
 app.use('/api/quests', questsRoutes);
 app.use('/api/badges', badgesRoutes);
 app.use('/api/levels', levelsRoutes);
+// Creator quest system routes
+app.use('/api/membership', membershipRoutes);
+app.use('/api/seasons', seasonsRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/creator-quests', creatorQuestsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
