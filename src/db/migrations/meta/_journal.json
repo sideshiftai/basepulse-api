@@ -15,6 +15,13 @@
       "when": 1763059989064,
       "tag": "0001_warm_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765070578415,
+      "tag": "0002_white_goblin_queen",
+      "breakpoints": true
     }
   ]
 }
