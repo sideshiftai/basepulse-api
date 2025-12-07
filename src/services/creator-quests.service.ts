@@ -7,10 +7,12 @@ import { db } from '../db/client';
 import {
   creatorQuests,
   creatorQuestParticipations,
+  creatorQuestShareProofs,
   CreatorQuestType,
   CreatorQuestRequirement,
+  SharePlatform,
 } from '../db/schema';
-import { eq, and, desc, asc, sql, gte, lte, or, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, gte, lte, or, isNull, count } from 'drizzle-orm';
 import { pointsService } from './points.service';
 
 export interface CreateQuestInput {
@@ -341,6 +343,105 @@ export class CreatorQuestsService {
     await db.delete(creatorQuests).where(eq(creatorQuests.id, id));
 
     return true;
+  }
+
+  /**
+   * Submit share proof for a share_poll quest
+   */
+  async submitShareProof(input: {
+    questId: string;
+    participantAddress: string;
+    pollId: string;
+    platform: SharePlatform;
+    shareUrl: string;
+  }) {
+    const normalizedAddress = input.participantAddress.toLowerCase();
+    const quest = await this.getQuestById(input.questId);
+
+    if (!quest) {
+      throw new Error('Quest not found');
+    }
+
+    if (!quest.isActive) {
+      throw new Error('Quest is not active');
+    }
+
+    if (quest.requirements.type !== 'share_poll') {
+      throw new Error('Quest is not a share_poll type');
+    }
+
+    // Check if this share already exists
+    const [existingShare] = await db
+      .select()
+      .from(creatorQuestShareProofs)
+      .where(
+        and(
+          eq(creatorQuestShareProofs.questId, input.questId),
+          eq(creatorQuestShareProofs.participantAddress, normalizedAddress),
+          eq(creatorQuestShareProofs.pollId, input.pollId),
+          eq(creatorQuestShareProofs.platform, input.platform)
+        )
+      )
+      .limit(1);
+
+    if (existingShare) {
+      throw new Error('Share already submitted for this poll and platform');
+    }
+
+    // Insert the share proof
+    const [shareProof] = await db
+      .insert(creatorQuestShareProofs)
+      .values({
+        questId: input.questId,
+        participantAddress: normalizedAddress,
+        pollId: input.pollId,
+        platform: input.platform,
+        shareUrl: input.shareUrl,
+        isVerified: true, // Auto-verify for now (URL format validated on frontend)
+        verifiedAt: new Date(),
+      })
+      .returning();
+
+    // Count total verified shares for this quest
+    const [shareCount] = await db
+      .select({ count: count() })
+      .from(creatorQuestShareProofs)
+      .where(
+        and(
+          eq(creatorQuestShareProofs.questId, input.questId),
+          eq(creatorQuestShareProofs.participantAddress, normalizedAddress),
+          eq(creatorQuestShareProofs.isVerified, true)
+        )
+      );
+
+    // Update quest progress
+    const progressResult = await this.updateProgress(
+      input.questId,
+      normalizedAddress,
+      shareCount?.count || 1
+    );
+
+    return {
+      shareProof,
+      progress: progressResult,
+    };
+  }
+
+  /**
+   * Get share proofs for a participant's quest
+   */
+  async getShareProofs(questId: string, participantAddress: string) {
+    const normalizedAddress = participantAddress.toLowerCase();
+    return db
+      .select()
+      .from(creatorQuestShareProofs)
+      .where(
+        and(
+          eq(creatorQuestShareProofs.questId, questId),
+          eq(creatorQuestShareProofs.participantAddress, normalizedAddress)
+        )
+      )
+      .orderBy(desc(creatorQuestShareProofs.createdAt));
   }
 }
 
