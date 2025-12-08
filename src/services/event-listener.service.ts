@@ -7,11 +7,25 @@ import { createPublicClient, http, Address, Log } from 'viem';
 import { baseSepolia, base } from 'viem/chains';
 import { db } from '../db/client';
 import { polls, distributionLogs, leaderboard, checkpoints } from '../db/schema';
-import { POLLS_CONTRACT_ADDRESS, POLLS_CONTRACT_ABI, CHAIN_ID, BASE_SEPOLIA_CHAIN_ID } from '../config/contracts';
+import {
+  POLLS_CONTRACT_ADDRESS,
+  POLLS_CONTRACT_ABI,
+  STAKING_CONTRACT_ADDRESS,
+  STAKING_CONTRACT_ABI,
+  PREMIUM_CONTRACT_ADDRESS,
+  PREMIUM_CONTRACT_ABI,
+  CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+} from '../config/contracts';
 import { eq, sql, and } from 'drizzle-orm';
+import { stakingService } from './staking.service';
+import { premiumService, SubscriptionTier } from './premium.service';
 
 // Distribution modes mapping
 const DISTRIBUTION_MODES = ['MANUAL_PULL', 'MANUAL_PUSH', 'AUTOMATED'] as const;
+
+// Subscription tier mapping
+const SUBSCRIPTION_TIERS: SubscriptionTier[] = ['MONTHLY', 'MONTHLY', 'ANNUAL', 'LIFETIME']; // Index 0 = NONE, but we map to MONTHLY as fallback
 
 export class EventListenerService {
   private publicClient;
@@ -55,6 +69,21 @@ export class EventListenerService {
     this.listenToRewardDistributed();
     this.listenToRewardClaimed();
     this.listenToFundsWithdrawn();
+
+    // QV event - VotesBought
+    this.listenToVotesBought();
+
+    // Staking events (only if contract is deployed)
+    if (STAKING_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000') {
+      this.listenToStaked();
+      this.listenToUnstaked();
+      this.listenToStakingRewardsClaimed();
+    }
+
+    // Premium subscription events (only if contract is deployed)
+    if (PREMIUM_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000') {
+      this.listenToSubscriptionPurchased();
+    }
 
     console.log('Event listener started successfully');
   }
@@ -440,6 +469,241 @@ export class EventListenerService {
     await this.updateCheckpoint(log.blockNumber);
   }
 
+  // ============================================
+  // QV Event Listeners and Handlers
+  // ============================================
+
+  /**
+   * Listen to VotesBought events (Quadratic Voting)
+   */
+  private listenToVotesBought() {
+    const unwatch = this.publicClient.watchContractEvent({
+      address: POLLS_CONTRACT_ADDRESS,
+      abi: POLLS_CONTRACT_ABI,
+      eventName: 'VotesBought',
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          try {
+            await this.handleVotesBought(log);
+          } catch (error) {
+            console.error('Error handling VotesBought event:', error);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('VotesBought event error:', error);
+      },
+    });
+
+    this.unsubscribeFunctions.push(unwatch);
+  }
+
+  /**
+   * Handle VotesBought event
+   */
+  private async handleVotesBought(log: any) {
+    const { pollId, voter, optionIndex, numVotes, cost } = log.args;
+
+    console.log(`VotesBought: pollId=${pollId}, voter=${voter}, numVotes=${numVotes}, cost=${cost}`);
+
+    // Update leaderboard - track QV participation
+    await this.updateLeaderboard(voter as Address, {
+      totalVotes: sql`${leaderboard.totalVotes} + ${Number(numVotes)}`,
+    });
+
+    await this.updateCheckpoint(log.blockNumber);
+  }
+
+  // ============================================
+  // Staking Event Listeners and Handlers
+  // ============================================
+
+  /**
+   * Listen to Staked events
+   */
+  private listenToStaked() {
+    const unwatch = this.publicClient.watchContractEvent({
+      address: STAKING_CONTRACT_ADDRESS,
+      abi: STAKING_CONTRACT_ABI,
+      eventName: 'Staked',
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          try {
+            await this.handleStaked(log);
+          } catch (error) {
+            console.error('Error handling Staked event:', error);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('Staked event error:', error);
+      },
+    });
+
+    this.unsubscribeFunctions.push(unwatch);
+  }
+
+  /**
+   * Listen to Unstaked events
+   */
+  private listenToUnstaked() {
+    const unwatch = this.publicClient.watchContractEvent({
+      address: STAKING_CONTRACT_ADDRESS,
+      abi: STAKING_CONTRACT_ABI,
+      eventName: 'Unstaked',
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          try {
+            await this.handleUnstaked(log);
+          } catch (error) {
+            console.error('Error handling Unstaked event:', error);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('Unstaked event error:', error);
+      },
+    });
+
+    this.unsubscribeFunctions.push(unwatch);
+  }
+
+  /**
+   * Listen to RewardsClaimed events (Staking)
+   */
+  private listenToStakingRewardsClaimed() {
+    const unwatch = this.publicClient.watchContractEvent({
+      address: STAKING_CONTRACT_ADDRESS,
+      abi: STAKING_CONTRACT_ABI,
+      eventName: 'RewardsClaimed',
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          try {
+            await this.handleStakingRewardsClaimed(log);
+          } catch (error) {
+            console.error('Error handling RewardsClaimed (Staking) event:', error);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('RewardsClaimed (Staking) event error:', error);
+      },
+    });
+
+    this.unsubscribeFunctions.push(unwatch);
+  }
+
+  /**
+   * Handle Staked event
+   */
+  private async handleStaked(log: any) {
+    const { user, amount, timestamp } = log.args;
+
+    console.log(`Staked: user=${user}, amount=${amount}`);
+
+    await stakingService.processStakeEvent(
+      CHAIN_ID,
+      user as string,
+      amount.toString(),
+      new Date(Number(timestamp) * 1000),
+      log.transactionHash,
+      log.blockNumber?.toString()
+    );
+
+    await this.updateCheckpoint(log.blockNumber);
+  }
+
+  /**
+   * Handle Unstaked event
+   */
+  private async handleUnstaked(log: any) {
+    const { user, amount, timestamp } = log.args;
+
+    console.log(`Unstaked: user=${user}, amount=${amount}`);
+
+    await stakingService.processUnstakeEvent(
+      CHAIN_ID,
+      user as string,
+      amount.toString(),
+      new Date(Number(timestamp) * 1000),
+      log.transactionHash,
+      log.blockNumber?.toString()
+    );
+
+    await this.updateCheckpoint(log.blockNumber);
+  }
+
+  /**
+   * Handle RewardsClaimed event (Staking)
+   */
+  private async handleStakingRewardsClaimed(log: any) {
+    const { user, amount, timestamp } = log.args;
+
+    console.log(`StakingRewardsClaimed: user=${user}, amount=${amount}`);
+
+    await stakingService.processClaimEvent(
+      CHAIN_ID,
+      user as string,
+      amount.toString(),
+      new Date(Number(timestamp) * 1000),
+      log.transactionHash,
+      log.blockNumber?.toString()
+    );
+
+    await this.updateCheckpoint(log.blockNumber);
+  }
+
+  // ============================================
+  // Premium Subscription Event Listeners and Handlers
+  // ============================================
+
+  /**
+   * Listen to SubscriptionPurchased events
+   */
+  private listenToSubscriptionPurchased() {
+    const unwatch = this.publicClient.watchContractEvent({
+      address: PREMIUM_CONTRACT_ADDRESS,
+      abi: PREMIUM_CONTRACT_ABI,
+      eventName: 'SubscriptionPurchased',
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          try {
+            await this.handleSubscriptionPurchased(log);
+          } catch (error) {
+            console.error('Error handling SubscriptionPurchased event:', error);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('SubscriptionPurchased event error:', error);
+      },
+    });
+
+    this.unsubscribeFunctions.push(unwatch);
+  }
+
+  /**
+   * Handle SubscriptionPurchased event
+   */
+  private async handleSubscriptionPurchased(log: any) {
+    const { user, tier, expirationTime, price } = log.args;
+    const tierName = SUBSCRIPTION_TIERS[tier as number] || 'MONTHLY';
+
+    console.log(`SubscriptionPurchased: user=${user}, tier=${tierName}, price=${price}`);
+
+    await premiumService.processSubscriptionPurchase(
+      CHAIN_ID,
+      user as string,
+      tierName,
+      price.toString(),
+      new Date(), // Use current time as purchase time
+      log.transactionHash,
+      log.blockNumber?.toString()
+    );
+
+    await this.updateCheckpoint(log.blockNumber);
+  }
+
   /**
    * Update leaderboard for a user
    */
@@ -579,6 +843,9 @@ export class EventListenerService {
             break;
           case 'FundsWithdrawn':
             await this.handleFundsWithdrawn(log);
+            break;
+          case 'VotesBought':
+            await this.handleVotesBought(log);
             break;
         }
       } catch (error) {
