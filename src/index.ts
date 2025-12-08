@@ -23,6 +23,9 @@ import seasonsRoutes from './routes/seasons.routes';
 import pointsRoutes from './routes/points.routes';
 import creatorQuestsRoutes from './routes/creator-quests.routes';
 import aiRoutes from './routes/ai.routes';
+// Premium and staking routes
+import stakingRoutes from './routes/staking.routes';
+import premiumRoutes from './routes/premium.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -73,6 +76,9 @@ app.use('/api/seasons', seasonsRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/creator-quests', creatorQuestsRoutes);
 app.use('/api/ai', aiRoutes);
+// Premium and staking routes
+app.use('/api/staking', stakingRoutes);
+app.use('/api/premium', premiumRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

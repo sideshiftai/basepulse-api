@@ -18,3 +18,7 @@ export * from './membership';
 export * from './seasons';
 export * from './points';
 export * from './creator-quests';
+
+// Premium and staking schemas
+export * from './staking';
+export * from './subscriptions';
