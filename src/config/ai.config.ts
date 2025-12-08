@@ -22,8 +22,8 @@ When a user wants to create a poll:
 3. The preview_poll tool will display a nice UI card for the user
 
 ## Your Capabilities:
-1. **Create Polls** - Use \`preview_poll\` to show a preview, then \`create_poll\` after confirmation
-2. **Fund Polls** - Use \`create_funding_shift\` to create SideShift orders
+1. **Create Polls** - Use \`preview_poll\` to show a preview, then user confirms to create
+2. **Fund Polls with SideShift** - When user specifies funding, include fundingToken and fundingAmount in \`preview_poll\`
 3. **Manage Polls** - Use \`get_user_polls\` and \`get_poll_details\` to show poll info
 4. **Claim Rewards** - Use \`create_claim_shift\` to claim rewards in any cryptocurrency
 
@@ -33,9 +33,32 @@ When a user wants to create a poll:
 3. Duration defaults to 7 days (604800 seconds) if not specified
 4. maxVoters defaults to 0 (unlimited) if not specified
 
+## Funding Flow:
+There are TWO ways to fund a poll:
+
+### 1. Direct Funding (Default)
+When user mentions funding without SideShift keywords:
+- Example: "fund with 0.01 ETH", "add $50 reward", "fund of 0.001 ETH"
+- Set \`fundingToken\` and \`fundingAmount\` in \`preview_poll\`
+- Set \`useSideshift: false\` (or omit it)
+- The UI will show "Create Poll" button → user signs one transaction to create and fund
+
+### 2. SideShift Funding (Cross-chain)
+When user explicitly mentions SideShift OR wants to convert from another chain:
+- Keywords: "sideshift", "convert", "from BTC", "from Solana", "cross-chain", "bridge"
+- Example: "fund with BTC using sideshift", "convert 0.1 SOL to fund"
+- Set \`fundingToken\`, \`fundingAmount\`, AND \`useSideshift: true\`
+- The UI will show "Create Shift" button → creates shift first, then poll
+
+### Funding Token Mapping:
+- If user says "ETH" → fundingToken: "ETH" (native on Base)
+- If user says "$50", "50 USD", "50 USDC" → fundingToken: "USDC"
+- For SideShift: any crypto (BTC, SOL, etc.) converts to USDC/ETH on Base
+
 ## Important Rules:
 - ALWAYS call \`preview_poll\` when user wants to create a poll - never just describe it in text
 - Extract poll parameters from user's message and pass them to the tool
+- If user mentions funding/rewards, ALWAYS include fundingToken and fundingAmount
 - Be concise in your text responses
 - The UI will render tool results nicely - trust the tools
 
@@ -47,7 +70,7 @@ export const AI_TOOLS = [
     type: 'function' as const,
     function: {
       name: 'preview_poll',
-      description: 'REQUIRED: Call this function whenever a user wants to create a poll. This displays a visual preview card with the poll details. Always use this instead of describing the poll in text.',
+      description: 'REQUIRED: Call this function whenever a user wants to create a poll. This displays a visual preview card with the poll details. If user mentions funding (e.g., "fund with ETH", "$50 reward"), include fundingToken and fundingAmount. Always use this instead of describing the poll in text.',
       parameters: {
         type: 'object',
         properties: {
@@ -70,11 +93,15 @@ export const AI_TOOLS = [
           },
           fundingAmount: {
             type: 'string',
-            description: 'Funding amount in USD equivalent (e.g., "50")',
+            description: 'Amount of funding in the token (e.g., "0.01" for 0.01 ETH, "50" for 50 USDC). Include this if user mentions any funding or rewards.',
           },
           fundingToken: {
             type: 'string',
-            description: 'Token to fund with (e.g., "USDC", "ETH")',
+            description: 'Token for funding (e.g., "ETH", "USDC"). For direct funding on Base, use ETH or USDC. For SideShift, can be any crypto.',
+          },
+          useSideshift: {
+            type: 'boolean',
+            description: 'Set to true ONLY if user explicitly mentions "sideshift", "convert", "bridge", or wants to fund from another chain (e.g., "from BTC", "from Solana"). Default is false for direct funding.',
           },
         },
         required: ['question', 'options'],
