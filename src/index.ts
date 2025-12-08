@@ -22,6 +22,7 @@ import membershipRoutes from './routes/membership.routes';
 import seasonsRoutes from './routes/seasons.routes';
 import pointsRoutes from './routes/points.routes';
 import creatorQuestsRoutes from './routes/creator-quests.routes';
+import aiRoutes from './routes/ai.routes';
 import { logger } from './utils/logger';
 
 // Create Express app
@@ -71,6 +72,7 @@ app.use('/api/membership', membershipRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/creator-quests', creatorQuestsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

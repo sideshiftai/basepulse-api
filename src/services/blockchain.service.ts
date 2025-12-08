@@ -68,11 +68,15 @@ export class BlockchainService {
   }
   /**
    * Get poll data from smart contract
+   * @param pollId - The poll ID
+   * @param chainId - Optional chain ID (defaults to environment config)
    */
-  async getPoll(pollId: bigint) {
+  async getPoll(pollId: bigint, chainId?: number) {
     try {
-      const result = await publicClient.readContract({
-        address: POLLS_CONTRACT_ADDRESS,
+      const { client, contractAddress } = this.getClientForChain(chainId);
+
+      const result = await client.readContract({
+        address: contractAddress,
         abi: POLLS_CONTRACT_ABI,
         functionName: 'getPoll',
         args: [pollId],
@@ -87,7 +91,7 @@ export class BlockchainService {
         isActive: result[5],
         creator: result[6],
         totalFunding: result[7],
-        distributionMode: result[8], // NEW: added distribution mode
+        distributionMode: result[8],
       };
     } catch (error) {
       throw new Error(`Failed to get poll ${pollId}: ${error}`);

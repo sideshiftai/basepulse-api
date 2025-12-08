@@ -203,7 +203,7 @@ router.get('/blockchain/:chainId/:pollId/fundings', async (req: Request, res: Re
     const { pollId } = req.params;
 
     const fundings = await blockchainService.getPollFundings(BigInt(pollId), chainId);
-    const poll = await blockchainService.getPoll(BigInt(pollId));
+    const poll = await blockchainService.getPoll(BigInt(pollId), chainId);
 
     res.json({
       pollId,
