@@ -17,6 +17,14 @@ export const BASE_SEPOLIA_RPC = config.blockchain.baseSepoliaRpcUrl || 'https://
 const BASE_MAINNET_POLLS_CONTRACT: Address = config.blockchain.baseMainnetPollsContract as Address;
 const BASE_SEPOLIA_POLLS_CONTRACT: Address = config.blockchain.baseSepoliaPollsContract as Address;
 
+// Staking contract addresses (set when deployed)
+const BASE_MAINNET_STAKING_CONTRACT: Address = (config.blockchain.baseMainnetStakingContract || '0x0000000000000000000000000000000000000000') as Address;
+const BASE_SEPOLIA_STAKING_CONTRACT: Address = (config.blockchain.baseSepoliaStakingContract || '0x0000000000000000000000000000000000000000') as Address;
+
+// Premium subscription contract addresses (set when deployed)
+const BASE_MAINNET_PREMIUM_CONTRACT: Address = (config.blockchain.baseMainnetPremiumContract || '0x0000000000000000000000000000000000000000') as Address;
+const BASE_SEPOLIA_PREMIUM_CONTRACT: Address = (config.blockchain.baseSepoliaPremiumContract || '0x0000000000000000000000000000000000000000') as Address;
+
 // Environment-based configuration
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -25,6 +33,12 @@ export const CHAIN_ID = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_SEPOLIA_CHAI
 export const POLLS_CONTRACT_ADDRESS: Address = isProduction
   ? BASE_MAINNET_POLLS_CONTRACT
   : BASE_SEPOLIA_POLLS_CONTRACT;
+export const STAKING_CONTRACT_ADDRESS: Address = isProduction
+  ? BASE_MAINNET_STAKING_CONTRACT
+  : BASE_SEPOLIA_STAKING_CONTRACT;
+export const PREMIUM_CONTRACT_ADDRESS: Address = isProduction
+  ? BASE_MAINNET_PREMIUM_CONTRACT
+  : BASE_SEPOLIA_PREMIUM_CONTRACT;
 export const RPC_URL = isProduction ? BASE_MAINNET_RPC : BASE_SEPOLIA_RPC;
 
 // Helper to get config for a specific network
@@ -226,6 +240,100 @@ export const POLLS_CONTRACT_ABI = [
       { internalType: 'address', name: 'user', type: 'address' },
     ],
     name: 'hasUserVoted',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // VotesBought event for quadratic voting
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'pollId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'voter', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'optionIndex', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'numVotes', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'cost', type: 'uint256' },
+    ],
+    name: 'VotesBought',
+    type: 'event',
+  },
+] as const;
+
+// Staking Contract ABI
+export const STAKING_CONTRACT_ABI = [
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'Staked',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'Unstaked',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'RewardsClaimed',
+    type: 'event',
+  },
+  // View functions
+  {
+    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
+    name: 'isPremiumByStaking',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalStaked',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
+// Premium Subscription Contract ABI
+export const PREMIUM_CONTRACT_ABI = [
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'uint8', name: 'tier', type: 'uint8' },
+      { indexed: false, internalType: 'uint256', name: 'expirationTime', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'price', type: 'uint256' },
+    ],
+    name: 'SubscriptionPurchased',
+    type: 'event',
+  },
+  // View functions
+  {
+    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
+    name: 'isPremium',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
+    name: 'isPremiumOrStaked',
     outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',

@@ -22,6 +22,12 @@ const envSchema = z.object({
   BASE_SEPOLIA_POLLS_CONTRACT: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format'),
   BASE_MAINNET_RPC_URL: z.string().url().optional(),
   BASE_SEPOLIA_RPC_URL: z.string().url().optional(),
+  // Staking contracts (optional - set when deployed)
+  BASE_MAINNET_STAKING_CONTRACT: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format').optional(),
+  BASE_SEPOLIA_STAKING_CONTRACT: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format').optional(),
+  // Premium subscription contracts (optional - set when deployed)
+  BASE_MAINNET_PREMIUM_CONTRACT: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format').optional(),
+  BASE_SEPOLIA_PREMIUM_CONTRACT: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format').optional(),
 
   // Sideshift
   SIDESHIFT_AFFILIATE_ID: z.string().optional(),
@@ -79,6 +85,10 @@ export const config = {
     baseSepoliaPollsContract: env.BASE_SEPOLIA_POLLS_CONTRACT,
     baseMainnetRpcUrl: env.BASE_MAINNET_RPC_URL,
     baseSepoliaRpcUrl: env.BASE_SEPOLIA_RPC_URL,
+    baseMainnetStakingContract: env.BASE_MAINNET_STAKING_CONTRACT,
+    baseSepoliaStakingContract: env.BASE_SEPOLIA_STAKING_CONTRACT,
+    baseMainnetPremiumContract: env.BASE_MAINNET_PREMIUM_CONTRACT,
+    baseSepoliaPremiumContract: env.BASE_SEPOLIA_PREMIUM_CONTRACT,
   },
   sideshift: {
     apiUrl: 'https://sideshift.ai/api/v2',
